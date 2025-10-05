@@ -1,0 +1,47 @@
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
+import Login from './Login'
+import Signup from './Signup'
+import Dashboard from './Dashboard'
+
+function Welcome() {
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Main content */}
+      <div className="flex items-center justify-center min-h-screen px-4">
+        <div className="max-w-4xl mx-auto text-center">
+          {/* Hero section */}
+          <div className="mb-12">
+            <h1 className="text-6xl md:text-8xl font-bold text-gray-900 mb-12">
+              Welcome to HRMS
+            </h1>
+          </div>
+
+          {/* Login and Signup buttons */}
+          <div className="flex flex-col sm:flex-row gap-6 justify-center">
+             <Link to="/login" className="px-12 py-4 bg-blue-600 text-white font-semibold rounded-full cursor-pointer text-center">
+               Login
+             </Link>
+             <Link to="/signup" className="px-12 py-4 bg-white text-gray-900 font-semibold rounded-full border-2 border-gray-300 cursor-pointer text-center">
+               Sign Up
+             </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<Welcome />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+      </Routes>
+    </Router>
+  )
+}
+
+export default App
