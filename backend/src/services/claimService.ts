@@ -1,6 +1,9 @@
 const attendanceRepo = require("../models/attendanceModel");
 const userRepo = require("../models/userModel");
 const claimsRepo = require("../models/claimsModel");
+const creditEventsRepo = require("../models/creditEventsModel");
+const creditsClaimsRepo = require("../models/creditsClaimsModel");
+const pool = require("../config/db");
 
 type ClaimResult = {
   date: string;
@@ -87,25 +90,24 @@ const computeDayClaim = async (
 };
 
 const computeMonthClaim = async (userId: number, year: number, month: number) => {
-  const incentives = await userRepo.getUserIncentivesById(userId);
-  const morningRate = incentives?.morning_incentive ?? 100;
-  const eveningRate = incentives?.evening_incentive ?? 100;
-
-  const totalDays = daysInMonth(year, month);
-  const breakdown = [] as any[];
+  const rows = await creditEventsRepo.listByMonth(userId, year, month);
   let morningDays = 0;
   let eveningDays = 0;
   let totalAmount = 0;
-
-  for (let d = 1; d <= totalDays; d++) {
-    const isoDate = toIsoDate(year, month, d);
-    const day = await computeDayClaim(userId, isoDate, morningRate, eveningRate);
-    if (day.morningEligible) morningDays += 1;
-    if (day.eveningEligible) eveningDays += 1;
-    totalAmount += day.totalCredit;
-    breakdown.push(day);
-  }
-
+  const breakdown = rows.map((r: any) => {
+    const morningCredit = Number(r.morning_credit || 0);
+    const eveningCredit = Number(r.evening_credit || 0);
+    const totalCredit = Number(r.total_credit || 0);
+    if (morningCredit > 0) morningDays += 1;
+    if (eveningCredit > 0) eveningDays += 1;
+    totalAmount += totalCredit;
+    return {
+      date: r.date,
+      morningCredit,
+      eveningCredit,
+      totalCredit,
+    };
+  });
   return { year, month, morningDays, eveningDays, totalAmount, breakdown };
 };
 
@@ -125,5 +127,53 @@ const submitMonthClaim = async (userId: number, year: number, month: number) => 
 
 module.exports.computeMonthClaim = computeMonthClaim;
 module.exports.submitMonthClaim = submitMonthClaim;
+
+// Available credits = earned - claimed
+const getAvailableCredits = async (userId: number) => {
+  const [earned, claimed] = await Promise.all([
+    creditEventsRepo.sumEarned(userId),
+    creditsClaimsRepo.sumClaimed(userId),
+  ]);
+  return { available: Math.max(0, earned - claimed), earned, claimed };
+};
+
+// Redeem credits with simple transaction
+const redeemCredits = async (userId: number, amount: number, note?: string) => {
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error("Invalid amount");
+  }
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const earnedRes = await client.query(
+      `SELECT COALESCE(SUM(amount),0) AS total FROM credit_events WHERE user_id = $1`,
+      [userId]
+    );
+    const claimedRes = await client.query(
+      `SELECT COALESCE(SUM(amount),0) AS total FROM credits_claims WHERE user_id = $1`,
+      [userId]
+    );
+    const earned = Number(earnedRes.rows[0].total || 0);
+    const claimed = Number(claimedRes.rows[0].total || 0);
+    const available = Math.max(0, earned - claimed);
+    if (amount > available) {
+      throw new Error("Insufficient available credits");
+    }
+    await client.query(
+      `INSERT INTO credits_claims (user_id, amount, note) VALUES ($1, $2, $3)`,
+      [userId, amount, note || null]
+    );
+    await client.query("COMMIT");
+    return { redeemed: amount, available: available - amount };
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
+};
+
+module.exports.getAvailableCredits = getAvailableCredits;
+module.exports.redeemCredits = redeemCredits;
 
 

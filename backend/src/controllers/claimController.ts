@@ -45,6 +45,33 @@ const submit = async (req: Request, res: Response) => {
   }
 };
 
-module.exports = { today, month, submit };
+const available = async (req: Request, res: Response) => {
+  try {
+    // @ts-ignore
+    const userId = req.user.id as number;
+    const data = await claimService.getAvailableCredits(userId);
+    res.json(data);
+  } catch (err: any) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+const redeem = async (req: Request, res: Response) => {
+  try {
+    // @ts-ignore
+    const userId = req.user.id as number;
+    const { amount, note } = req.body || {};
+    const amt = parseInt(amount, 10);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      return res.status(400).json({ message: "Invalid amount" });
+    }
+    const data = await claimService.redeemCredits(userId, amt, note);
+    res.status(201).json(data);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+module.exports = { today, month, submit, available, redeem };
 
 

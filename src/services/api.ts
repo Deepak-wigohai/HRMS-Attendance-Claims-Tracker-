@@ -111,6 +111,18 @@ class ApiService {
     })
   }
 
+  // Credits
+  async getAvailableCredits() {
+    return this.request('/claims/available')
+  }
+
+  async redeemCredits(amount: number, note?: string) {
+    return this.request('/claims/redeem', {
+      method: 'POST',
+      body: JSON.stringify({ amount, note }),
+    })
+  }
+
   // User endpoints
   async getUserProfile() {
     return this.request('/user/profile')
