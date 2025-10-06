@@ -90,43 +90,20 @@ const computeDayClaim = async (
 };
 
 const computeMonthClaim = async (userId: number, year: number, month: number) => {
-  const rows = await creditEventsRepo.listByMonth(userId, year, month);
-  let morningDays = 0;
-  let eveningDays = 0;
-  let totalAmount = 0;
-  const breakdown = rows.map((r: any) => {
-    const morningCredit = Number(r.morning_credit || 0);
-    const eveningCredit = Number(r.evening_credit || 0);
-    const totalCredit = Number(r.total_credit || 0);
-    if (morningCredit > 0) morningDays += 1;
-    if (eveningCredit > 0) eveningDays += 1;
-    totalAmount += totalCredit;
-    return {
-      date: r.date,
-      morningCredit,
-      eveningCredit,
-      totalCredit,
-    };
-  });
-  return { year, month, morningDays, eveningDays, totalAmount, breakdown };
+  const rows = await creditsClaimsRepo.listByMonth(userId, year, month);
+  const claims = rows.map((r: any) => ({
+    id: r.id,
+    amount: Number(r.amount || 0),
+    note: r.note || null,
+    claimedAt: r.claimed_at ? new Date(r.claimed_at).toISOString() : null,
+  }));
+  const count = claims.length;
+  const totalClaimed = claims.reduce((sum: number, c: any) => sum + (Number.isFinite(c.amount) ? c.amount : 0), 0);
+  return { year, month, count, totalClaimed, claims };
 };
 
-const submitMonthClaim = async (userId: number, year: number, month: number) => {
-  const computed = await computeMonthClaim(userId, year, month);
-  const saved = await claimsRepo.upsert(
-    { userId, year, month },
-    {
-      morning_days: computed.morningDays,
-      evening_days: computed.eveningDays,
-      total_amount: computed.totalAmount,
-      breakdown: computed.breakdown,
-    }
-  );
-  return saved;
-};
 
 module.exports.computeMonthClaim = computeMonthClaim;
-module.exports.submitMonthClaim = submitMonthClaim;
 
 // Available credits = earned - claimed
 const getAvailableCredits = async (userId: number) => {

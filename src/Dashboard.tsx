@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import SidebarLayout from './SidebarLayout'
 import apiService from './services/api'
 
 interface UserIncentives {
@@ -170,28 +170,8 @@ function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-gray-900">HRMS Dashboard</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">Welcome, User</span>
-              <Link 
-                to="/" 
-                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Logout
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <SidebarLayout title="Dashboard">
+      <div>
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
             {error}
@@ -212,14 +192,14 @@ function Dashboard() {
               <button
                 onClick={handlePunchIn}
                 disabled={loading}
-                className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 shadow-sm disabled:opacity-50"
               >
                 {loading ? 'Processing...' : 'Punch In'}
               </button>
               <button
                 onClick={handlePunchOut}
                 disabled={loading}
-                className="w-full bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                className="w-full bg-orange-600 text-white py-2 px-4 rounded-lg hover:bg-orange-700 shadow-sm disabled:opacity-50"
               >
                 {loading ? 'Processing...' : 'Punch Out'}
               </button>
@@ -288,7 +268,7 @@ function Dashboard() {
                 <button
                   onClick={handleRedeem}
                   disabled={loading}
-                  className="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                  className="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 shadow-sm disabled:opacity-50"
                 >
                   {loading ? 'Processing...' : 'Redeem'}
                 </button>
@@ -298,7 +278,7 @@ function Dashboard() {
         </div>
 
       </div>
-    </div>
+    </SidebarLayout>
   )
 }
 

@@ -18,6 +18,19 @@ const sumClaimed = async (userId: number) => {
   return Number(res.rows[0]?.total || 0);
 };
 
-module.exports = { insertClaim, sumClaimed };
+const listByMonth = async (userId: number, year: number, month: number) => {
+  const res = await pool.query(
+    `SELECT id, amount, note, claimed_at
+     FROM credits_claims
+     WHERE user_id = $1
+       AND date_part('year', claimed_at) = $2
+       AND date_part('month', claimed_at) = $3
+     ORDER BY claimed_at DESC`,
+    [userId, year, month]
+  );
+  return res.rows;
+};
+
+module.exports = { insertClaim, sumClaimed, listByMonth };
 
 

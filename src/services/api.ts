@@ -104,13 +104,6 @@ class ApiService {
     return this.request(`/claims/month?year=${year}&month=${month}`)
   }
 
-  async submitClaim(year: number, month: number) {
-    return this.request('/claims/submit', {
-      method: 'POST',
-      body: JSON.stringify({ year, month }),
-    })
-  }
-
   // Credits
   async getAvailableCredits() {
     return this.request('/claims/available')

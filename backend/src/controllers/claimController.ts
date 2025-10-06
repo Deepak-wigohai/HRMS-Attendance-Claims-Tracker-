@@ -28,22 +28,7 @@ const month = async (req: Request, res: Response) => {
   }
 };
 
-const submit = async (req: Request, res: Response) => {
-  try {
-    // @ts-ignore
-    const userId = req.user.id as number;
-    const { year, month } = req.body || {};
-    const y = parseInt(year, 10);
-    const m = parseInt(month, 10);
-    if (!Number.isFinite(y) || !Number.isFinite(m) || m < 1 || m > 12) {
-      return res.status(400).json({ message: "Invalid year or month" });
-    }
-    const saved = await claimService.submitMonthClaim(userId, y, m);
-    res.status(201).json(saved);
-  } catch (err: any) {
-    res.status(500).json({ message: "Server error", error: err.message });
-  }
-};
+// removed unused submit handler
 
 const available = async (req: Request, res: Response) => {
   try {
@@ -72,6 +57,6 @@ const redeem = async (req: Request, res: Response) => {
   }
 };
 
-module.exports = { today, month, submit, available, redeem };
+module.exports = { today, month, available, redeem };
 
 

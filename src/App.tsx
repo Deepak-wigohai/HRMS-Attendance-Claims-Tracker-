@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
 import Login from './Login'
 import Signup from './Signup'
 import Dashboard from './Dashboard'
+import MonthlyClaims from './MonthlyClaims'
 
 function Welcome() {
   return (
@@ -39,6 +40,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/claims" element={<MonthlyClaims />} />
       </Routes>
     </Router>
   )
