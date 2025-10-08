@@ -29,23 +29,24 @@ function MonthlyClaims() {
     Array.from({ length: 12 }).map((_, i) => ({ value: i + 1, label: new Date(0, i).toLocaleString(undefined, { month: 'long' }) }))
   ), [])
 
-  const fetchData = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const res = await apiService.getMonthClaim(year, month)
-      if (res.error) {
-        setError(res.error)
+  const fetchData = () => {
+    setLoading(true)
+    setError(null)
+    apiService
+      .getMonthClaim(year, month)
+      .then((res) => {
+        if (res.error) {
+          setError(res.error)
+          setData(null)
+        } else {
+          setData(res.data as unknown as MonthResponse)
+        }
+      })
+      .catch(() => {
+        setError('Failed to load monthly claims')
         setData(null)
-      } else {
-        setData(res.data as unknown as MonthResponse)
-      }
-    } catch (e) {
-      setError('Failed to load monthly claims')
-      setData(null)
-    } finally {
-      setLoading(false)
-    }
+      })
+      .finally(() => setLoading(false))
   }
 
   useEffect(() => {

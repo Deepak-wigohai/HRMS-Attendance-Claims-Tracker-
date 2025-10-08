@@ -27,7 +27,7 @@ class ApiService {
     localStorage.removeItem('token')
   }
 
-  private async request<T>(
+  private request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
@@ -43,73 +43,72 @@ class ApiService {
       ...options,
     }
 
-    try {
-      const response = await fetch(url, config)
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Request failed')
-      }
-
-      return { data }
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : 'Unknown error' }
-    }
+    return fetch(url, config)
+      .then((response) =>
+        response
+          .json()
+          .then((data) => {
+            if (!response.ok) {
+              throw new Error(data.message || 'Request failed')
+            }
+            return { data } as ApiResponse<T>
+          })
+      )
+      .catch((error) => ({ error: error instanceof Error ? error.message : 'Unknown error' }))
   }
 
   // Authentication endpoints
-  async signup(email: string, password: string) {
+  signup(email: string, password: string) {
     return this.request('/auth/signup', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     })
   }
 
-  async login(email: string, password: string) {
-    const response = await this.request<{ token: string }>('/auth/login', {
+  login(email: string, password: string) {
+    return this.request<{ token: string }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
+    }).then((response) => {
+      if (response.data?.token) {
+        this.setToken(response.data.token)
+      }
+      return response
     })
-
-    if (response.data?.token) {
-      this.setToken(response.data.token)
-    }
-
-    return response
   }
 
   // Attendance endpoints
-  async clockIn() {
+  clockIn() {
     return this.request('/attendance/login', {
       method: 'POST',
     })
   }
 
-  async clockOut() {
+  clockOut() {
     return this.request('/attendance/logout', {
       method: 'POST',
     })
   }
 
-  async getTodayAttendance() {
+  getTodayAttendance() {
     return this.request('/attendance/today')
   }
 
   // Claims endpoints
-  async getTodayClaim() {
+  getTodayClaim() {
     return this.request('/claims/today')
   }
 
-  async getMonthClaim(year: number, month: number) {
+  getMonthClaim(year: number, month: number) {
     return this.request(`/claims/month?year=${year}&month=${month}`)
   }
 
   // Credits
-  async getAvailableCredits() {
+  getAvailableCredits() {
     return this.request('/claims/available')
   }
 
-  async redeemCredits(amount: number, note?: string) {
+  redeemCredits(amount: number, note?: string) {
     return this.request('/claims/redeem', {
       method: 'POST',
       body: JSON.stringify({ amount, note }),
@@ -117,12 +116,12 @@ class ApiService {
   }
 
   // User endpoints
-  async getUserProfile() {
+  getUserProfile() {
     return this.request('/user/profile')
   }
 
   // Get user incentives (using existing user model)
-  async getUserIncentives() {
+  getUserIncentives() {
     return this.request('/user/incentives')
   }
 }

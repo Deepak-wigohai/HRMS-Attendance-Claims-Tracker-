@@ -1,18 +1,20 @@
 import type { Request, Response } from "express";
 const claimService = require("../services/claimService");
 
-const today = async (req: Request, res: Response) => {
+const today = (req: Request, res: Response) => {
   try {
     // @ts-ignore added by auth middleware
     const userId = req.user.id as number;
-    const result = await claimService.computeTodayClaim(userId);
-    res.json(result);
+    claimService
+      .computeTodayClaim(userId)
+      .then((result: any) => res.json(result))
+      .catch((err: any) => res.status(500).json({ message: "Server error", error: err.message }));
   } catch (err: any) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
-const month = async (req: Request, res: Response) => {
+const month = (req: Request, res: Response) => {
   try {
     // @ts-ignore
     const userId = req.user.id as number;
@@ -21,8 +23,10 @@ const month = async (req: Request, res: Response) => {
     if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
       return res.status(400).json({ message: "Invalid year or month" });
     }
-    const result = await claimService.computeMonthClaim(userId, year, month);
-    res.json(result);
+    claimService
+      .computeMonthClaim(userId, year, month)
+      .then((result: any) => res.json(result))
+      .catch((err: any) => res.status(500).json({ message: "Server error", error: err.message }));
   } catch (err: any) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
@@ -30,18 +34,20 @@ const month = async (req: Request, res: Response) => {
 
 // removed unused submit handler
 
-const available = async (req: Request, res: Response) => {
+const available = (req: Request, res: Response) => {
   try {
     // @ts-ignore
     const userId = req.user.id as number;
-    const data = await claimService.getAvailableCredits(userId);
-    res.json(data);
+    claimService
+      .getAvailableCredits(userId)
+      .then((data: any) => res.json(data))
+      .catch((err: any) => res.status(500).json({ message: "Server error", error: err.message }));
   } catch (err: any) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
-const redeem = async (req: Request, res: Response) => {
+const redeem = (req: Request, res: Response) => {
   try {
     // @ts-ignore
     const userId = req.user.id as number;
@@ -50,8 +56,10 @@ const redeem = async (req: Request, res: Response) => {
     if (!Number.isFinite(amt) || amt <= 0) {
       return res.status(400).json({ message: "Invalid amount" });
     }
-    const data = await claimService.redeemCredits(userId, amt, note);
-    res.status(201).json(data);
+    claimService
+      .redeemCredits(userId, amt, note)
+      .then((data: any) => res.status(201).json(data))
+      .catch((err: any) => res.status(400).json({ message: err.message }));
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }

@@ -14,30 +14,36 @@ const isAtOrAfter = (time: Date, hh: number, mm: number) => {
   return h > hh || (h === hh && m >= mm);
 };
 
-const login = async (userId: number) => {
-  const res = await attendanceRepo.createLogin(userId);
+const login = (userId: number) => {
   const now = new Date();
-  if (isAtOrBefore(now, 8, 0)) {
-    const incentives = await userRepo.getUserIncentivesById(userId);
-    const amount = incentives?.morning_incentive ?? 100;
-    await creditEvents.upsertMorning(userId, toBusinessIsoDate(now), amount);
-  }
-  return res;
+  const shouldCreditMorning = isAtOrBefore(now, 8, 0);
+  return attendanceRepo.createLogin(userId).then((res: any) => {
+    if (!shouldCreditMorning) return res;
+    return userRepo
+      .getUserIncentivesById(userId)
+      .then((incentives: any) => incentives?.morning_incentive ?? 100)
+      .then((amount: number) =>
+        creditEvents.upsertMorning(userId, toBusinessIsoDate(now), amount).then(() => res)
+      );
+  });
 };
 
-const logout = async (userId: number) => {
-  const res = await attendanceRepo.setLogout(userId);
+const logout = (userId: number) => {
   const now = new Date();
-  if (isAtOrAfter(now, 19, 0)) {
-    const incentives = await userRepo.getUserIncentivesById(userId);
-    const amount = incentives?.evening_incentive ?? 100;
-    await creditEvents.upsertEvening(userId, toBusinessIsoDate(now), amount);
-  }
-  return res;
+  const shouldCreditEvening = isAtOrAfter(now, 19, 0);
+  return attendanceRepo.setLogout(userId).then((res: any) => {
+    if (!shouldCreditEvening) return res;
+    return userRepo
+      .getUserIncentivesById(userId)
+      .then((incentives: any) => incentives?.evening_incentive ?? 100)
+      .then((amount: number) =>
+        creditEvents.upsertEvening(userId, toBusinessIsoDate(now), amount).then(() => res)
+      );
+  });
 };
 
-const today = async (userId: number) => {
-  return await attendanceRepo.getTodayAttendance(userId);
+const today = (userId: number) => {
+  return attendanceRepo.getTodayAttendance(userId);
 };
 
 module.exports = { login, logout, today };

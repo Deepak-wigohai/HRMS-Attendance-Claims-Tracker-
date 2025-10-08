@@ -34,128 +34,122 @@ function Dashboard() {
 
   // Real API calls to fetch dashboard data
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true)
-        
-        // Fetch user incentives from backend
-        const incentivesResponse = await apiService.getUserIncentives()
-        if (incentivesResponse.data) {
-          setUserIncentives({
-            morning_incentive: (incentivesResponse.data as UserIncentives).morning_incentive || 100,
-            evening_incentive: (incentivesResponse.data as UserIncentives).evening_incentive || 100
-          })
-        }
-
-        // Check today's attendance to determine if user is logged in
-        const attendanceResponse = await apiService.getTodayAttendance()
-        if (attendanceResponse.data) {
-          const records = (attendanceResponse.data as AttendanceResponse).records || []
-          const hasActiveSession = records.some((record: AttendanceRecord) => !record.logout_time)
-          setIsLoggedIn(hasActiveSession)
-        }
-
-        // Fetch available credits
-        const creditsResponse = await apiService.getAvailableCredits()
-        if (creditsResponse.data) {
-          const data = creditsResponse.data as unknown as { available: number; earned: number; claimed: number }
-          setAvailableCredits(data.available || 0)
-          setEarnedCredits(data.earned || 0)
-          setClaimedCredits(data.claimed || 0)
-        }
-
-      } catch (err) {
-        console.error('Failed to load dashboard data:', err)
-        setError('Failed to load dashboard data')
-        // Set default values on error
-        setUserIncentives({
-          morning_incentive: 100,
-          evening_incentive: 100
+    const fetchDashboardData = () => {
+      setLoading(true)
+      
+      apiService
+        .getUserIncentives()
+        .then((incentivesResponse) => {
+          if (incentivesResponse.data) {
+            setUserIncentives({
+              morning_incentive: (incentivesResponse.data as UserIncentives).morning_incentive || 100,
+              evening_incentive: (incentivesResponse.data as UserIncentives).evening_incentive || 100
+            })
+          }
+          return apiService.getTodayAttendance()
         })
-        setIsLoggedIn(false)
-      } finally {
-        setLoading(false)
-      }
+        .then((attendanceResponse) => {
+          if (attendanceResponse.data) {
+            const records = (attendanceResponse.data as AttendanceResponse).records || []
+            const hasActiveSession = records.some((record: AttendanceRecord) => !record.logout_time)
+            setIsLoggedIn(hasActiveSession)
+          }
+          return apiService.getAvailableCredits()
+        })
+        .then((creditsResponse) => {
+          if (creditsResponse.data) {
+            const data = creditsResponse.data as unknown as { available: number; earned: number; claimed: number }
+            setAvailableCredits(data.available || 0)
+            setEarnedCredits(data.earned || 0)
+            setClaimedCredits(data.claimed || 0)
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to load dashboard data:', err)
+          setError('Failed to load dashboard data')
+          setUserIncentives({
+            morning_incentive: 100,
+            evening_incentive: 100
+          })
+          setIsLoggedIn(false)
+        })
+        .finally(() => setLoading(false))
     }
 
     fetchDashboardData()
   }, [])
 
-  const handlePunchIn = async () => {
-    try {
-      setLoading(true)
-      const response = await apiService.clockIn()
-      if (response.error) {
-        setError(response.error)
-        setSuccessMessage(null)
-      } else {
-        setError('')
-        setSuccessMessage('Punch in successful!')
-        setIsLoggedIn(true) // Update status immediately
-        console.log('Punch in successful:', response.data)
-        // Auto-hide success message after 3 seconds
-        setTimeout(() => setSuccessMessage(null), 3000)
-      }
-    } catch (err) {
-      setError('Failed to punch in')
-    } finally {
-      setLoading(false)
-    }
+  const handlePunchIn = () => {
+    setLoading(true)
+    apiService
+      .clockIn()
+      .then((response) => {
+        if (response.error) {
+          setError(response.error)
+          setSuccessMessage(null)
+        } else {
+          setError('')
+          setSuccessMessage('Punch in successful!')
+          setIsLoggedIn(true)
+          console.log('Punch in successful:', response.data)
+          setTimeout(() => setSuccessMessage(null), 3000)
+        }
+      })
+      .catch(() => setError('Failed to punch in'))
+      .finally(() => setLoading(false))
   }
 
-  const handlePunchOut = async () => {
-    try {
-      setLoading(true)
-      const response = await apiService.clockOut()
-      if (response.error) {
-        setError(response.error)
-        setSuccessMessage(null)
-      } else {
-        setError('')
-        setSuccessMessage('Punch out successful!')
-        setIsLoggedIn(false) // Update status immediately
-        console.log('Punch out successful:', response.data)
-        // Auto-hide success message after 3 seconds
-        setTimeout(() => setSuccessMessage(null), 3000)
-      }
-    } catch (err) {
-      setError('Failed to punch out')
-    } finally {
-      setLoading(false)
-    }
+  const handlePunchOut = () => {
+    setLoading(true)
+    apiService
+      .clockOut()
+      .then((response) => {
+        if (response.error) {
+          setError(response.error)
+          setSuccessMessage(null)
+        } else {
+          setError('')
+          setSuccessMessage('Punch out successful!')
+          setIsLoggedIn(false)
+          console.log('Punch out successful:', response.data)
+          setTimeout(() => setSuccessMessage(null), 3000)
+        }
+      })
+      .catch(() => setError('Failed to punch out'))
+      .finally(() => setLoading(false))
   }
 
-  const handleRedeem = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const amountNum = parseInt(redeemAmount, 10)
-      if (!Number.isFinite(amountNum) || amountNum <= 0) {
-        setError('Enter a valid amount')
-        return
-      }
-      const resp = await apiService.redeemCredits(amountNum, redeemNote)
-      if (resp.error) {
-        setError(resp.error)
-        setSuccessMessage(null)
-      } else {
+  const handleRedeem = () => {
+    setLoading(true)
+    setError(null)
+    const amountNum = parseInt(redeemAmount, 10)
+    if (!Number.isFinite(amountNum) || amountNum <= 0) {
+      setError('Enter a valid amount')
+      setLoading(false)
+      return
+    }
+    apiService
+      .redeemCredits(amountNum, redeemNote)
+      .then((resp) => {
+        if (resp.error) {
+          setError(resp.error)
+          setSuccessMessage(null)
+          return
+        }
         setSuccessMessage('Redeemed successfully')
         setRedeemAmount("")
         setRedeemNote("")
-        // Refresh available credits
-        const creditsResponse = await apiService.getAvailableCredits()
-        if (creditsResponse.data) {
-          const data = creditsResponse.data as unknown as { available: number; earned: number; claimed: number }
-          setAvailableCredits(data.available || 0)
-          setEarnedCredits(data.earned || 0)
-          setClaimedCredits(data.claimed || 0)
-        }
-      }
-    } catch (err) {
-      setError('Failed to redeem credits')
-    } finally {
-      setLoading(false)
-    }
+        return apiService.getAvailableCredits().then((creditsResponse) => {
+          if (creditsResponse.data) {
+            const data = creditsResponse.data as unknown as { available: number; earned: number; claimed: number }
+            setAvailableCredits(data.available || 0)
+            setEarnedCredits(data.earned || 0)
+            setClaimedCredits(data.claimed || 0)
+          }
+        })
+      })
+      .catch(() => setError('Failed to redeem credits'))
+      .finally(() => setLoading(false))
   }
 
   if (loading) {
@@ -192,14 +186,14 @@ function Dashboard() {
               <button
                 onClick={handlePunchIn}
                 disabled={loading}
-                className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 shadow-sm disabled:opacity-50"
+                className="w-full bg-white text-black py-2 px-4 rounded-lg hover:bg-gray-300 shadow-sm disabled:opacity-50"
               >
                 {loading ? 'Processing...' : 'Punch In'}
               </button>
               <button
                 onClick={handlePunchOut}
                 disabled={loading}
-                className="w-full bg-orange-600 text-white py-2 px-4 rounded-lg hover:bg-orange-700 shadow-sm disabled:opacity-50"
+                className="w-full bg-black text-white py-2 px-4 rounded-lg hover:bg-gray-300 hover:text-black shadow-sm disabled:opacity-50"
               >
                 {loading ? 'Processing...' : 'Punch Out'}
               </button>
@@ -209,7 +203,7 @@ function Dashboard() {
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Today's Status</h3>
             <div className="text-center">
-              <div className="text-3xl font-bold text-green-600 mb-2">
+              <div className="text-3xl font-bold text-black-600 mb-2">
                 {isLoggedIn ? 'Present' : 'Absent'}
               </div>
               <p className="text-gray-600">
@@ -247,7 +241,7 @@ function Dashboard() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-700">Available:</span>
-                <span className="text-xl font-bold text-indigo-700">₹{availableCredits}</span>
+                <span className="text-xl font-bold text-black-700">₹{availableCredits}</span>
               </div>
               <div className="grid grid-cols-1 gap-3 pt-2">
                 <input
@@ -268,7 +262,7 @@ function Dashboard() {
                 <button
                   onClick={handleRedeem}
                   disabled={loading}
-                  className="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 shadow-sm disabled:opacity-50"
+                  className="w-full bg-white text-black py-2 px-4 rounded-lg hover:bg-gray-300 hover:text-black shadow-sm disabled:opacity-50"
                 >
                   {loading ? 'Processing...' : 'Redeem'}
                 </button>

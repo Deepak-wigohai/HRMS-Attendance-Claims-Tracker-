@@ -11,24 +11,22 @@ function Signup() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
 
-    try {
-      const response = await apiService.signup(formData.email, formData.password)
-      
-      if (response.error) {
-        setError(response.error)
-      } else {
-        navigate('/login')
-      }
-    } catch (err) {
-      setError('Signup failed. Please try again.')
-    } finally {
-      setLoading(false)
-    }
+    apiService
+      .signup(formData.email, formData.password)
+      .then((response) => {
+        if (response.error) {
+          setError(response.error)
+        } else {
+          navigate('/login')
+        }
+      })
+      .catch(() => setError('Signup failed. Please try again.'))
+      .finally(() => setLoading(false))
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

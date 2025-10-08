@@ -11,24 +11,22 @@ function Login() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
 
-    try {
-      const response = await apiService.login(formData.email, formData.password)
-      
-      if (response.error) {
-        setError(response.error)
-      } else {
-        navigate('/dashboard')
-      }
-    } catch (err) {
-      setError('Login failed. Please try again.')
-    } finally {
-      setLoading(false)
-    }
+    apiService
+      .login(formData.email, formData.password)
+      .then((response) => {
+        if (response.error) {
+          setError(response.error)
+        } else {
+          navigate('/dashboard')
+        }
+      })
+      .catch(() => setError('Login failed. Please try again.'))
+      .finally(() => setLoading(false))
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
