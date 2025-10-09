@@ -2,9 +2,12 @@ import { useState, useEffect } from 'react'
 import SidebarLayout from './SidebarLayout'
 import apiService from './services/api'
 
-interface UserIncentives {
-  morning_incentive: number
-  evening_incentive: number
+interface TodayClaim {
+  morningEligible: boolean
+  eveningEligible: boolean
+  morningCredit: number
+  eveningCredit: number
+  totalCredit: number
 }
 
 interface AttendanceRecord {
@@ -21,7 +24,6 @@ interface AttendanceResponse {
 }
 
 function Dashboard() {
-  const [userIncentives, setUserIncentives] = useState<UserIncentives | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -31,6 +33,7 @@ function Dashboard() {
   const [claimedCredits, setClaimedCredits] = useState<number>(0)
   const [redeemAmount, setRedeemAmount] = useState<string>("")
   const [redeemNote, setRedeemNote] = useState<string>("")
+  const [todayClaim, setTodayClaim] = useState<TodayClaim | null>(null)
 
   // Real API calls to fetch dashboard data
   useEffect(() => {
@@ -38,16 +41,7 @@ function Dashboard() {
       setLoading(true)
       
       apiService
-        .getUserIncentives()
-        .then((incentivesResponse) => {
-          if (incentivesResponse.data) {
-            setUserIncentives({
-              morning_incentive: (incentivesResponse.data as UserIncentives).morning_incentive || 100,
-              evening_incentive: (incentivesResponse.data as UserIncentives).evening_incentive || 100
-            })
-          }
-          return apiService.getTodayAttendance()
-        })
+        .getTodayAttendance()
         .then((attendanceResponse) => {
           if (attendanceResponse.data) {
             const records = (attendanceResponse.data as AttendanceResponse).records || []
@@ -63,14 +57,23 @@ function Dashboard() {
             setEarnedCredits(data.earned || 0)
             setClaimedCredits(data.claimed || 0)
           }
+          return apiService.getTodayClaim()
+        })
+        .then((claimResponse) => {
+          if (claimResponse && claimResponse.data) {
+            const d = claimResponse.data as unknown as any
+            setTodayClaim({
+              morningEligible: !!d.morningEligible,
+              eveningEligible: !!d.eveningEligible,
+              morningCredit: Number(d.morningCredit || 0),
+              eveningCredit: Number(d.eveningCredit || 0),
+              totalCredit: Number(d.totalCredit || 0),
+            })
+          }
         })
         .catch((err) => {
           console.error('Failed to load dashboard data:', err)
           setError('Failed to load dashboard data')
-          setUserIncentives({
-            morning_incentive: 100,
-            evening_incentive: 100
-          })
           setIsLoggedIn(false)
         })
         .finally(() => setLoading(false))
@@ -178,6 +181,12 @@ function Dashboard() {
           </div>
         )}
 
+        {/* Welcome Text */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-900">Welcome</h2>
+          <p className="text-gray-600">Have a productive day ahead!</p>
+        </div>
+
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
@@ -212,60 +221,71 @@ function Dashboard() {
             </div>
           </div>
 
+          {/* Can I earn credits today? */}
           <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Incentives</h3>
-            {userIncentives && (
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Morning:</span>
-                  <span className="font-semibold">₹{userIncentives.morning_incentive}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Evening:</span>
-                  <span className="font-semibold">₹{userIncentives.evening_incentive}</span>
-                </div>
-              </div>
-            )}
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Today's Credits</h3>
+            <div className="text-sm text-gray-500 mb-1">Status</div>
+            <p className="text-gray-700 mb-4">
+              {isLoggedIn && todayClaim && (todayClaim.morningEligible || todayClaim.eveningEligible)
+                ? 'You can earn credits today.'
+                : "I can't earn credits today."}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <span className={"inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm border border-gray-200 bg-white text-gray-700"}>
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+                Morning {todayClaim?.morningEligible ? `earned ₹${todayClaim.morningCredit}` : "didn't receive"}
+              </span>
+              <span className={"inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm border border-gray-200 bg-white text-gray-700"}>
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
+                Evening {todayClaim?.eveningEligible ? `earned ₹${todayClaim.eveningCredit}` : "didn't receive"}
+              </span>
+            </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Credits</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Earned:</span>
-                <span className="font-semibold">₹{earnedCredits}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Claimed:</span>
-                <span className="font-semibold">₹{claimedCredits}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-700">Available:</span>
-                <span className="text-xl font-bold text-black-700">₹{availableCredits}</span>
-              </div>
-              <div className="grid grid-cols-1 gap-3 pt-2">
-                <input
-                  type="number"
-                  min={1}
-                  value={redeemAmount}
-                  onChange={(e) => setRedeemAmount(e.target.value)}
-                  placeholder="Amount to redeem"
-                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                <input
-                  type="text"
-                  value={redeemNote}
-                  onChange={(e) => setRedeemNote(e.target.value)}
-                  placeholder="Note (optional)"
-                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                <button
-                  onClick={handleRedeem}
-                  disabled={loading}
-                  className="w-full bg-white text-black py-2 px-4 rounded-lg hover:bg-gray-300 hover:text-black shadow-sm disabled:opacity-50"
-                >
-                  {loading ? 'Processing...' : 'Redeem'}
-                </button>
+        </div>
+
+        {/* Credits Section */}
+        <div className="mt-2">
+          <h3 className="text-xl font-semibold text-gray-900 mb-4">Credits</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Earned:</span>
+                  <span className="font-semibold">₹{earnedCredits}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Claimed:</span>
+                  <span className="font-semibold">₹{claimedCredits}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-700">Available:</span>
+                  <span className="text-xl font-bold text-black-700">₹{availableCredits}</span>
+                </div>
+                <div className="grid grid-cols-1 gap-3 pt-2">
+                  <input
+                    type="number"
+                    min={1}
+                    value={redeemAmount}
+                    onChange={(e) => setRedeemAmount(e.target.value)}
+                    placeholder="Amount to redeem"
+                    className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <input
+                    type="text"
+                    value={redeemNote}
+                    onChange={(e) => setRedeemNote(e.target.value)}
+                    placeholder="Note (optional)"
+                    className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <button
+                    onClick={handleRedeem}
+                    disabled={loading}
+                    className="w-full bg-white text-black py-2 px-4 rounded-lg hover:bg-gray-300 hover:text-black shadow-sm disabled:opacity-50"
+                  >
+                    {loading ? 'Processing...' : 'Redeem'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

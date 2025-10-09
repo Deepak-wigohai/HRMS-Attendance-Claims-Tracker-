@@ -30,15 +30,20 @@ const login = (userId: number) => {
 
 const logout = (userId: number) => {
   const now = new Date();
-  const shouldCreditEvening = isAtOrAfter(now, 19, 0);
+  const shouldCreditEveningByTime = isAtOrAfter(now, 19, 0);
   return attendanceRepo.setLogout(userId).then((res: any) => {
-    if (!shouldCreditEvening) return res;
-    return userRepo
-      .getUserIncentivesById(userId)
-      .then((incentives: any) => incentives?.evening_incentive ?? 100)
-      .then((amount: number) =>
-        creditEvents.upsertEvening(userId, toBusinessIsoDate(now), amount).then(() => res)
-      );
+    if (!shouldCreditEveningByTime) return res;
+    // If the user's first login today was after evening cutoff, do not award any evening credit
+    return attendanceRepo.getTodayDayBounds(userId).then(({ first_login }: { first_login: Date | null }) => {
+      const firstLoginAfterEvening = first_login ? isAtOrAfter(new Date(first_login), 19, 0) : false;
+      if (firstLoginAfterEvening) return res;
+      return userRepo
+        .getUserIncentivesById(userId)
+        .then((incentives: any) => incentives?.evening_incentive ?? 100)
+        .then((amount: number) =>
+          creditEvents.upsertEvening(userId, toBusinessIsoDate(now), amount).then(() => res)
+        );
+    });
   });
 };
 

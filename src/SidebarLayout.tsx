@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 
 type IconProps = { className?: string }
@@ -38,6 +38,7 @@ function NavItem({ to, label, Icon }: { to: string; label: string; Icon: (p: Ico
 }
 
 export default function SidebarLayout({ title, children }: { title: string; children: ReactNode }) {
+  const [profileOpen, setProfileOpen] = useState(false)
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <aside className="w-64 bg-white shadow-md flex flex-col">
@@ -54,11 +55,41 @@ export default function SidebarLayout({ title, children }: { title: string; chil
         
       </aside>
       <main className="flex-1">
-        <header className="bg-white shadow-sm">
+        <header className="bg-white shadow-sm relative">
           <div className="h-16 flex items-center px-6 justify-between">
             <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-            <div className="flex items-center gap-2">
-              <Link to="/" className="px-3 py-2 rounded-md text-sm font-medium bg-red-600 text-white hover:bg-red-700 shadow-sm">Logout</Link>
+            <div className="relative">
+              <button
+                aria-label="User menu"
+                onClick={() => setProfileOpen((v) => !v)}
+                className="h-10 w-10 rounded-full bg-indigo-600/10 text-indigo-700 flex items-center justify-center hover:bg-indigo-600/20 focus:outline-none"
+              >
+                {/* User icon */}
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </button>
+              {profileOpen && (
+                <div className="absolute right-0 mt-2 w-44 bg-white rounded-md shadow-lg ring-1 ring-black/5 z-20">
+                  <div className="py-1">
+                    <Link
+                      to="/about"
+                      onClick={() => setProfileOpen(false)}
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      About
+                    </Link>
+                    <Link
+                      to="/"
+                      onClick={() => setProfileOpen(false)}
+                      className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                    >
+                      Logout
+                    </Link>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </header>

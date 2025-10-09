@@ -3,6 +3,7 @@ import Login from './Login'
 import Signup from './Signup'
 import Dashboard from './Dashboard'
 import MonthlyClaims from './MonthlyClaims'
+import About from './About'
 
 function Welcome() {
   return (
@@ -41,6 +42,7 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/claims" element={<MonthlyClaims />} />
+        <Route path="/about" element={<About />} />
       </Routes>
     </Router>
   )
