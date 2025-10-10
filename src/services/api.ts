@@ -103,6 +103,14 @@ class ApiService {
     return this.request(`/claims/month?year=${year}&month=${month}`)
   }
 
+  getMonthSummary(year: number, month: number) {
+    return this.request(`/claims/month-summary?year=${year}&month=${month}`)
+  }
+
+  getMonthEarned(year: number, month: number) {
+    return this.request(`/claims/month-earned?year=${year}&month=${month}`)
+  }
+
   // Credits
   getAvailableCredits() {
     return this.request('/claims/available')

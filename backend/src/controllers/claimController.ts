@@ -32,6 +32,42 @@ const month = (req: Request, res: Response) => {
   }
 };
 
+const monthSummary = (req: Request, res: Response) => {
+  try {
+    // @ts-ignore
+    const userId = req.user.id as number;
+    const year = parseInt((req.query.year as string) || new Date().getFullYear().toString(), 10);
+    const month = parseInt((req.query.month as string) || (new Date().getMonth() + 1).toString(), 10);
+    if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+      return res.status(400).json({ message: "Invalid year or month" });
+    }
+    claimService
+      .getMonthSummary(userId, year, month)
+      .then((result: any) => res.json(result))
+      .catch((err: any) => res.status(500).json({ message: "Server error", error: err.message }));
+  } catch (err: any) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+const monthEarned = (req: Request, res: Response) => {
+  try {
+    // @ts-ignore
+    const userId = req.user.id as number;
+    const year = parseInt((req.query.year as string) || new Date().getFullYear().toString(), 10);
+    const month = parseInt((req.query.month as string) || (new Date().getMonth() + 1).toString(), 10);
+    if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+      return res.status(400).json({ message: "Invalid year or month" });
+    }
+    claimService
+      .getMonthEarnings(userId, year, month)
+      .then((result: any) => res.json({ year, month, days: result }))
+      .catch((err: any) => res.status(500).json({ message: "Server error", error: err.message }));
+  } catch (err: any) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
 // removed unused submit handler
 
 const available = (req: Request, res: Response) => {
@@ -65,6 +101,6 @@ const redeem = (req: Request, res: Response) => {
   }
 };
 
-module.exports = { today, month, available, redeem };
+module.exports = { today, month, monthSummary, monthEarned, available, redeem };
 
 

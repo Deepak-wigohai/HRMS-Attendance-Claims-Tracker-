@@ -36,4 +36,19 @@ const listByMonth = (userId: number, year: number, month: number) => {
 
 module.exports = { insertClaim, sumClaimed, listByMonth };
 
+const sumClaimedByMonth = (userId: number, year: number, month: number) => {
+  return pool
+    .query(
+      `SELECT COALESCE(SUM(amount),0) AS total
+       FROM credits_claims
+       WHERE user_id = $1
+         AND date_part('year', claimed_at) = $2
+         AND date_part('month', claimed_at) = $3`,
+      [userId, year, month]
+    )
+    .then((res: any) => Number(res.rows[0]?.total || 0));
+};
+
+module.exports.sumClaimedByMonth = sumClaimedByMonth;
+
 

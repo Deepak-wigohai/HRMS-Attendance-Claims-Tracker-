@@ -31,9 +31,11 @@ const isAtOrAfter = (time: Date | null, hh: number, mm: number) => {
 };
 
 const computeTodayClaim = async (userId: number): Promise<ClaimResult> => {
-  const [{ first_login, last_logout }, userIncentives] = await Promise.all([
+  const businessIsoDate = new Date().toISOString().slice(0, 10);
+  const [{ first_login, last_logout }, userIncentives, recorded] = await Promise.all([
     attendanceRepo.getTodayDayBounds(userId),
     userRepo.getUserIncentivesById(userId),
+    creditEventsRepo.getByDate(userId, businessIsoDate),
   ]);
 
   const morningRate = userIncentives?.morning_incentive ?? 100;
@@ -42,12 +44,13 @@ const computeTodayClaim = async (userId: number): Promise<ClaimResult> => {
   const morningEligible = isAtOrBefore(first_login, 8, 0);
   const eveningEligible = isAtOrAfter(last_logout, 19, 0);
 
-  const morningCredit = morningEligible ? morningRate : 0;
-  const eveningCredit = eveningEligible ? eveningRate : 0;
-  const totalCredit = morningCredit + eveningCredit;
+  // Show only amounts actually recorded for today
+  const morningCredit = Number(recorded?.morning_credit || 0);
+  const eveningCredit = Number(recorded?.evening_credit || 0);
+  const totalCredit = Number(recorded?.total_credit || (morningCredit + eveningCredit));
 
   return {
-    date: new Date().toISOString().slice(0, 10),
+    date: businessIsoDate,
     firstLogin: formatDate(first_login),
     lastLogout: formatDate(last_logout),
     morningEligible,
@@ -152,5 +155,29 @@ const redeemCredits = async (userId: number, amount: number, note?: string) => {
 
 module.exports.getAvailableCredits = getAvailableCredits;
 module.exports.redeemCredits = redeemCredits;
+
+// Month summary: earned in month vs claimed in month, remaining claimable
+const getMonthSummary = async (userId: number, year: number, month: number) => {
+  const [earnedInMonth, claimedInMonth] = await Promise.all([
+    creditEventsRepo.sumByMonth(userId, year, month),
+    creditsClaimsRepo.sumClaimedByMonth(userId, year, month),
+  ]);
+  const remaining = Math.max(0, earnedInMonth - claimedInMonth);
+  return { year, month, earnedInMonth, claimedInMonth, remaining };
+};
+
+module.exports.getMonthSummary = getMonthSummary;
+
+const getMonthEarnings = async (userId: number, year: number, month: number) => {
+  const rows = await creditEventsRepo.listEarningsByMonth(userId, year, month);
+  return rows.map((r: any) => ({
+    date: r.date instanceof Date ? r.date.toISOString().slice(0,10) : r.date,
+    morningCredit: Number(r.morning_credit || 0),
+    eveningCredit: Number(r.evening_credit || 0),
+    totalCredit: Number(r.total_credit || 0),
+  }));
+};
+
+module.exports.getMonthEarnings = getMonthEarnings;
 
 

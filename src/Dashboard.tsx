@@ -8,6 +8,8 @@ interface TodayClaim {
   morningCredit: number
   eveningCredit: number
   totalCredit: number
+  firstLogin?: string | null
+  lastLogout?: string | null
 }
 
 interface AttendanceRecord {
@@ -34,9 +36,35 @@ function Dashboard() {
   const [redeemAmount, setRedeemAmount] = useState<string>("")
   const [redeemNote, setRedeemNote] = useState<string>("")
   const [todayClaim, setTodayClaim] = useState<TodayClaim | null>(null)
+  const [monthSummary, setMonthSummary] = useState<{ year: number; month: number; earnedInMonth: number; claimedInMonth: number; remaining: number } | null>(null)
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const now = new Date()
+    const y = now.getFullYear()
+    const m = String(now.getMonth() + 1).padStart(2, '0')
+    return `${y}-${m}`
+  })
 
   // Real API calls to fetch dashboard data
   useEffect(() => {
+    const fetchMonthSummary = (ym?: string) => {
+      const value = ym || selectedMonth
+      const [yStr, mStr] = value.split('-')
+      const y = parseInt(yStr, 10)
+      const m = parseInt(mStr, 10)
+      return apiService.getMonthSummary(y, m).then((summaryResponse) => {
+        if (summaryResponse && summaryResponse.data) {
+          const s = summaryResponse.data as any
+          setMonthSummary({
+            year: Number(s.year),
+            month: Number(s.month),
+            earnedInMonth: Number(s.earnedInMonth || 0),
+            claimedInMonth: Number(s.claimedInMonth || 0),
+            remaining: Number(s.remaining || 0),
+          })
+        }
+      })
+    }
+
     const fetchDashboardData = () => {
       setLoading(true)
       
@@ -68,8 +96,11 @@ function Dashboard() {
               morningCredit: Number(d.morningCredit || 0),
               eveningCredit: Number(d.eveningCredit || 0),
               totalCredit: Number(d.totalCredit || 0),
+              firstLogin: d.firstLogin || null,
+              lastLogout: d.lastLogout || null,
             })
           }
+          return fetchMonthSummary()
         })
         .catch((err) => {
           console.error('Failed to load dashboard data:', err)
@@ -81,6 +112,83 @@ function Dashboard() {
 
     fetchDashboardData()
   }, [])
+
+  const eveningFinished = new Date().getHours() >= 19
+  const creditsStatus = !eveningFinished
+    ? 'Can earn credits'
+    : (todayClaim && (todayClaim.morningCredit > 0 || todayClaim.eveningCredit > 0))
+      ? 'Earned credits'
+      : 'No further credits available'
+
+  const refreshPresentStatusCard = () => {
+    return apiService.getTodayAttendance().then((attendanceResponse) => {
+      const records = (attendanceResponse.data as AttendanceResponse)?.records || []
+      let firstLoginDate: Date | null = null
+      let lastLogoutDate: Date | null = null
+      for (const rec of records) {
+        const login = new Date(rec.login_time)
+        if (!firstLoginDate || login < firstLoginDate) firstLoginDate = login
+        if (rec.logout_time) {
+          const logout = new Date(rec.logout_time)
+          if (!lastLogoutDate || logout > lastLogoutDate) lastLogoutDate = logout
+        }
+      }
+      setTodayClaim((prev) => ({
+        morningEligible: prev?.morningEligible ?? false,
+        eveningEligible: prev?.eveningEligible ?? false,
+        morningCredit: prev?.morningCredit ?? 0,
+        eveningCredit: prev?.eveningCredit ?? 0,
+        totalCredit: prev?.totalCredit ?? 0,
+        firstLogin: firstLoginDate ? firstLoginDate.toISOString() : null,
+        lastLogout: lastLogoutDate ? lastLogoutDate.toISOString() : null,
+      }))
+    })
+  }
+
+  const refreshCreditsAndMonthSummary = () => {
+    return apiService.getAvailableCredits().then((creditsResponse) => {
+      if (creditsResponse.data) {
+        const data = creditsResponse.data as unknown as { available: number; earned: number; claimed: number }
+        setAvailableCredits(data.available || 0)
+        setEarnedCredits(data.earned || 0)
+        setClaimedCredits(data.claimed || 0)
+      }
+      const [yStr, mStr] = selectedMonth.split('-')
+      const y = parseInt(yStr, 10)
+      const m = parseInt(mStr, 10)
+      return apiService.getMonthSummary(y, m).then((summaryResponse) => {
+        if (summaryResponse && summaryResponse.data) {
+          const s = summaryResponse.data as any
+          setMonthSummary({
+            year: Number(s.year),
+            month: Number(s.month),
+            earnedInMonth: Number(s.earnedInMonth || 0),
+            claimedInMonth: Number(s.claimedInMonth || 0),
+            remaining: Number(s.remaining || 0),
+          })
+        }
+      })
+    })
+  }
+
+  const redeemDirect = (amount: number, note: string) => {
+    setLoading(true)
+    setError(null)
+    return apiService
+      .redeemCredits(amount, note)
+      .then((resp) => {
+        if (resp.error) {
+          setError(resp.error)
+          setSuccessMessage(null)
+          return
+        }
+        setSuccessMessage('Redeemed successfully')
+        setTimeout(() => setSuccessMessage(null), 3000)
+        return refreshCreditsAndMonthSummary()
+      })
+      .catch(() => setError('Failed to redeem credits'))
+      .finally(() => setLoading(false))
+  }
 
   const handlePunchIn = () => {
     setLoading(true)
@@ -95,6 +203,7 @@ function Dashboard() {
           setSuccessMessage('Punch in successful!')
           setIsLoggedIn(true)
           console.log('Punch in successful:', response.data)
+          refreshPresentStatusCard()
           setTimeout(() => setSuccessMessage(null), 3000)
         }
       })
@@ -115,6 +224,7 @@ function Dashboard() {
           setSuccessMessage('Punch out successful!')
           setIsLoggedIn(false)
           console.log('Punch out successful:', response.data)
+          refreshPresentStatusCard()
           setTimeout(() => setSuccessMessage(null), 3000)
         }
       })
@@ -157,12 +267,14 @@ function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading dashboard...</p>
+      <SidebarLayout title="Dashboard">
+        <div className="py-12 flex justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading...</p>
+          </div>
         </div>
-      </div>
+      </SidebarLayout>
     )
   }
 
@@ -210,14 +322,42 @@ function Dashboard() {
           </div>
 
           <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Today's Status</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Present status</h3>
             <div className="text-center">
-              <div className="text-3xl font-bold text-black-600 mb-2">
+              <div className="text-4xl font-bold text-black-600 mb-2">
                 {isLoggedIn ? 'Present' : 'Absent'}
               </div>
-              <p className="text-gray-600">
+              <p className="text-gray-600 text-sm">
                 {new Date().toLocaleDateString()}
               </p>
+              {todayClaim && (
+                <div className="mt-4 text-xs text-gray-600 space-y-1">
+                  <div>
+                    <span className="font-medium">First login:</span>{' '}
+                    {(() => {
+                      const v = todayClaim.firstLogin
+                      if (!v) return '—'
+                      const d = new Date(v)
+                      const now = new Date()
+                      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()
+                        ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : '—'
+                    })()}
+                  </div>
+                  <div>
+                    <span className="font-medium">Last logout:</span>{' '}
+                    {(() => {
+                      const v = todayClaim.lastLogout
+                      if (!v) return '—'
+                      const d = new Date(v)
+                      const now = new Date()
+                      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()
+                        ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : '—'
+                    })()}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -225,11 +365,7 @@ function Dashboard() {
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-3">Today's Credits</h3>
             <div className="text-sm text-gray-500 mb-1">Status</div>
-            <p className="text-gray-700 mb-4">
-              {isLoggedIn && todayClaim && (todayClaim.morningEligible || todayClaim.eveningEligible)
-                ? 'You can earn credits today.'
-                : "I can't earn credits today."}
-            </p>
+            <p className="text-gray-700 mb-4">{creditsStatus}</p>
             <div className="flex flex-wrap gap-2">
               <span className={"inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm border border-gray-200 bg-white text-gray-700"}>
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
@@ -247,7 +383,7 @@ function Dashboard() {
         {/* Credits Section */}
         <div className="mt-2">
           <h3 className="text-xl font-semibold text-gray-900 mb-4">Credits</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="bg-white rounded-lg shadow p-6">
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
@@ -269,14 +405,14 @@ function Dashboard() {
                     value={redeemAmount}
                     onChange={(e) => setRedeemAmount(e.target.value)}
                     placeholder="Amount to redeem"
-                    className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   <input
                     type="text"
                     value={redeemNote}
                     onChange={(e) => setRedeemNote(e.target.value)}
                     placeholder="Note (optional)"
-                    className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   <button
                     onClick={handleRedeem}
@@ -286,6 +422,64 @@ function Dashboard() {
                     {loading ? 'Processing...' : 'Redeem'}
                   </button>
                 </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="space-y-3">
+                <h4 className="text-lg font-semibold text-gray-900">Claim Month</h4>
+                <div className="grid grid-cols-1 gap-2">
+                  <label className="text-sm text-gray-600" htmlFor="monthPicker">Select month</label>
+                  <input
+                    id="monthPicker"
+                    type="month"
+                    value={selectedMonth}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      setSelectedMonth(val)
+                      // fetch summary for selected month
+                      const [yStr, mStr] = val.split('-')
+                      const y = parseInt(yStr, 10)
+                      const m = parseInt(mStr, 10)
+                      apiService.getMonthSummary(y, m).then((summaryResponse) => {
+                        if (summaryResponse && summaryResponse.data) {
+                          const s = summaryResponse.data as any
+                          setMonthSummary({
+                            year: Number(s.year),
+                            month: Number(s.month),
+                            earnedInMonth: Number(s.earnedInMonth || 0),
+                            claimedInMonth: Number(s.claimedInMonth || 0),
+                            remaining: Number(s.remaining || 0),
+                          })
+                        }
+                      })
+                    }}
+                    className="w-full rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Earned this month:</span>
+                  <span className="font-semibold">₹{monthSummary?.earnedInMonth ?? 0}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Already claimed:</span>
+                  <span className="font-semibold">₹{monthSummary?.claimedInMonth ?? 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-700">Remaining:</span>
+                  <span className="text-xl font-bold text-black-700">₹{monthSummary?.remaining ?? 0}</span>
+                </div>
+                <button
+                  onClick={() => {
+                    if (!monthSummary) return
+                    const amt = monthSummary.remaining
+                    if (!Number.isFinite(amt) || amt <= 0) return
+                    redeemDirect(amt, `Monthly claim ${selectedMonth}`)
+                  }}
+                  disabled={loading || !monthSummary || (monthSummary?.remaining ?? 0) <= 0}
+                  className="w-full bg-black text-white py-2 px-4 rounded-lg hover:bg-gray-300 hover:text-black shadow-sm disabled:opacity-50"
+                >
+                  {loading ? 'Processing...' : 'Claim Remaining for Month'}
+                </button>
               </div>
             </div>
           </div>
