@@ -12,20 +12,20 @@ function Welcome() {
     <div className="min-h-screen bg-white">
       {/* Main content */}
       <div className="flex items-center justify-center min-h-screen px-4">
-        <div className="max-w-4xl mx-auto text-center">
+        <div className="max-w-3xl mx-auto text-center">
           {/* Hero section */}
           <div className="mb-12">
-            <h1 className="text-6xl md:text-8xl font-bold text-gray-900 mb-12">
+            <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-gray-900 mb-8 md:mb-12 leading-tight">
               Welcome to HRMS
             </h1>
           </div>
 
           {/* Login and Signup buttons */}
-          <div className="flex flex-col sm:flex-row gap-6 justify-center">
-             <Link to="/login" className="px-12 py-4 bg-blue-600 text-white font-semibold rounded-full cursor-pointer text-center">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center">
+             <Link to="/login" className="px-8 sm:px-12 py-3 sm:py-4 bg-blue-600 text-white font-semibold rounded-full cursor-pointer text-center">
                Login
              </Link>
-             <Link to="/signup" className="px-12 py-4 bg-white text-gray-900 font-semibold rounded-full border-2 border-gray-300 cursor-pointer text-center">
+             <Link to="/signup" className="px-8 sm:px-12 py-3 sm:py-4 bg-white text-gray-900 font-semibold rounded-full border-2 border-gray-300 cursor-pointer text-center">
                Sign Up
              </Link>
           </div>
@@ -33,11 +33,11 @@ function Welcome() {
       </div>
       
       {/* Wigohai logo at the bottom */}
-      <div className="fixed bottom-4 right-4">
+      <div className="fixed bottom-3 right-3 sm:bottom-4 sm:right-4">
         <img 
           src="/wigohai.webp" 
           alt="Wigohai" 
-          className="w-16 h-16 object-contain"
+          className="w-12 h-12 sm:w-16 sm:h-16 object-contain"
         />
       </div>
     </div>

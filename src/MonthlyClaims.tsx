@@ -167,9 +167,10 @@ function MonthlyClaims() {
             </div>
 
             {viewMode === 'daily' && (
-              <div className="bg-white rounded-lg shadow overflow-hidden mb-6 w-full max-w-4xl">
+              <div className="bg-white rounded-lg shadow mb-6 w-full max-w-4xl">
                 <div className="px-6 py-4 border-b text-sm font-semibold text-gray-700 text-center">Claimed Days</div>
-                <table className="min-w-full divide-y divide-gray-200">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Claimed At</th>
@@ -192,14 +193,16 @@ function MonthlyClaims() {
                       </tr>
                     )}
                   </tbody>
-                </table>
+                  </table>
+                </div>
               </div>
             )}
 
             {viewMode === 'monthly' && (
-              <div className="bg-white rounded-lg shadow overflow-hidden w-full max-w-4xl">
+              <div className="bg-white rounded-lg shadow w-full max-w-4xl">
                 <div className="px-6 py-4 border-b text-sm font-semibold text-gray-700 text-center">Monthly Claims</div>
-                <table className="min-w-full divide-y divide-gray-200">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
@@ -227,7 +230,8 @@ function MonthlyClaims() {
                       )
                     })()}
                   </tbody>
-                </table>
+                  </table>
+                </div>
               </div>
             )}
           </>
