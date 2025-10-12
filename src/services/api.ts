@@ -133,6 +133,30 @@ class ApiService {
     })
   }
 
+  // Redeem approval flow
+  createRedeemRequest(amount: number, note?: string, adminEmail?: string) {
+    return this.request('/claims/request-redeem', {
+      method: 'POST',
+      body: JSON.stringify({ amount, note, adminEmail }),
+    })
+  }
+
+  getRedeemRequests() {
+    return this.request<{ requests: any[] }>('/claims/redeem-requests')
+  }
+
+  redeemWithRequest(requestId: number) {
+    return this.request('/claims/redeem', {
+      method: 'POST',
+      body: JSON.stringify({ requestId }),
+    })
+  }
+
+  // Admin overview
+  getAdminOverview() {
+    return this.request<{ totalUsers: number; totalAdmins: number; presentToday: number }>('/admin/overview')
+  }
+
   // User endpoints
   getUserProfile() {
     return this.request('/user/profile')

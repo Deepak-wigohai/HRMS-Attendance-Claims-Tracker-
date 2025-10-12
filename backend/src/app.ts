@@ -19,12 +19,14 @@ const authRoutes = require("./routes/authRoutes");
 const attendanceRoutes = require("./routes/attendanceRoutes");
 const claimRoutes = require("./routes/claimRoutes");
 const userRoutes = require("./routes/userRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 
 
 apiRoutes.use("/auth", authRoutes);
 apiRoutes.use("/attendance", attendanceRoutes);
 apiRoutes.use("/claims", claimRoutes);
 apiRoutes.use("/user", userRoutes);
+apiRoutes.use("/admin", adminRoutes);
 
 app.use("/api", apiRoutes);
 

@@ -4,6 +4,7 @@ const claimsRepo = require("../models/claimsModel");
 const creditEventsRepo = require("../models/creditEventsModel");
 const creditsClaimsRepo = require("../models/creditsClaimsModel");
 const pool = require("../config/db");
+const redeemRequestsRepo = require("../models/redeemRequestsModel");
 
 type ClaimResult = {
   date: string;
@@ -179,5 +180,38 @@ const getMonthEarnings = async (userId: number, year: number, month: number) => 
 };
 
 module.exports.getMonthEarnings = getMonthEarnings;
+
+// Admin email helpers
+const getAdminEmails = () => String(process.env.ADMIN_EMAILS || "").split(",").map((s: string) => s.trim()).filter(Boolean);
+
+async function createRedeemRequest(userId: number, amount: number, note?: string, adminEmail?: string) {
+  const admins = getAdminEmails();
+  if (!admins.length) throw new Error("No admin emails configured");
+  if (!Number.isFinite(amount) || amount <= 0) throw new Error("Invalid amount");
+  if (adminEmail && !admins.includes(adminEmail)) throw new Error("Invalid admin email");
+
+  const { available } = await module.exports.getAvailableCredits(userId);
+  if (amount > available) throw new Error("Amount exceeds available credits");
+
+  const targetAdmin = adminEmail || admins[0];
+  return redeemRequestsRepo.create(userId, amount, note, targetAdmin);
+}
+
+async function listRedeemRequests(userId: number) {
+  return redeemRequestsRepo.listByUser(userId);
+}
+
+async function getRedeemRequestById(id: number) {
+  return redeemRequestsRepo.getById(id);
+}
+
+async function markRequestRedeemed(id: number) {
+  return redeemRequestsRepo.markRedeemed(id);
+}
+
+module.exports.createRedeemRequest = createRedeemRequest;
+module.exports.listRedeemRequests = listRedeemRequests;
+module.exports.getRedeemRequestById = getRedeemRequestById;
+module.exports.markRequestRedeemed = markRequestRedeemed;
 
 

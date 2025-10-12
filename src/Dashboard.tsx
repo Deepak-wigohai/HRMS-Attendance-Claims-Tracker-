@@ -65,6 +65,27 @@ function Dashboard() {
       })
     }
 
+    const finalizeApprovedRequests = () => {
+      // Auto-redeem any approved, unredeemed requests
+      return apiService
+        .getRedeemRequests()
+        .then((res) => {
+          const list = (res.data as any)?.requests || []
+          const pending = list.filter((r: any) => r.approved && !r.redeemed)
+          if (!pending.length) return
+          return Promise.all(
+            pending.map((r: any) =>
+              apiService.redeemWithRequest(r.id).catch(() => null)
+            )
+          ).then(() => {
+            setSuccessMessage('Redeemed approved requests')
+            setTimeout(() => setSuccessMessage(null), 3000)
+            return refreshCreditsAndMonthSummary()
+          })
+        })
+        .catch(() => void 0)
+    }
+
     const fetchDashboardData = () => {
       setLoading(true)
       
@@ -102,6 +123,7 @@ function Dashboard() {
           }
           return fetchMonthSummary()
         })
+        .then(() => finalizeApprovedRequests())
         .catch((err) => {
           console.error('Failed to load dashboard data:', err)
           setError('Failed to load dashboard data')
@@ -111,6 +133,28 @@ function Dashboard() {
     }
 
     fetchDashboardData()
+  }, [])
+
+  // Periodically auto-finalize any newly approved requests while the page is open
+  useEffect(() => {
+    const timer = setInterval(() => {
+      apiService
+        .getRedeemRequests()
+        .then((res) => {
+          const list = (res.data as any)?.requests || []
+          const pending = list.filter((r: any) => r.approved && !r.redeemed)
+          if (!pending.length) return
+          return Promise.all(
+            pending.map((r: any) => apiService.redeemWithRequest(r.id).catch(() => null))
+          ).then(() => {
+            setSuccessMessage('Redeemed approved requests')
+            setTimeout(() => setSuccessMessage(null), 3000)
+            return refreshCreditsAndMonthSummary()
+          })
+        })
+        .catch(() => void 0)
+    }, 15000)
+    return () => clearInterval(timer)
   }, [])
 
   const eveningFinished = new Date().getHours() >= 19
@@ -172,21 +216,21 @@ function Dashboard() {
   }
 
   const redeemDirect = (amount: number, note: string) => {
+    // Convert direct redeem into a request to admin
     setLoading(true)
     setError(null)
     return apiService
-      .redeemCredits(amount, note)
+      .createRedeemRequest(amount, note)
       .then((resp) => {
         if (resp.error) {
           setError(resp.error)
           setSuccessMessage(null)
           return
         }
-        setSuccessMessage('Redeemed successfully')
+        setSuccessMessage('Redeem request sent to admin')
         setTimeout(() => setSuccessMessage(null), 3000)
-        return refreshCreditsAndMonthSummary()
       })
-      .catch(() => setError('Failed to redeem credits'))
+      .catch(() => setError('Failed to create redeem request'))
       .finally(() => setLoading(false))
   }
 
@@ -242,26 +286,18 @@ function Dashboard() {
       return
     }
     apiService
-      .redeemCredits(amountNum, redeemNote)
+      .createRedeemRequest(amountNum, redeemNote)
       .then((resp) => {
         if (resp.error) {
           setError(resp.error)
           setSuccessMessage(null)
           return
         }
-        setSuccessMessage('Redeemed successfully')
+        setSuccessMessage('Redeem request sent to admin')
         setRedeemAmount("")
         setRedeemNote("")
-        return apiService.getAvailableCredits().then((creditsResponse) => {
-          if (creditsResponse.data) {
-            const data = creditsResponse.data as unknown as { available: number; earned: number; claimed: number }
-            setAvailableCredits(data.available || 0)
-            setEarnedCredits(data.earned || 0)
-            setClaimedCredits(data.claimed || 0)
-          }
-        })
       })
-      .catch(() => setError('Failed to redeem credits'))
+      .catch(() => setError('Failed to create redeem request'))
       .finally(() => setLoading(false))
   }
 
@@ -369,11 +405,17 @@ function Dashboard() {
             <div className="flex flex-wrap gap-2">
               <span className={"inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm border border-gray-200 bg-white text-gray-700"}>
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
-                Morning {todayClaim?.morningEligible ? `earned ₹${todayClaim.morningCredit}` : "didn't receive"}
+                {(() => {
+                  const mc = todayClaim ? Number(todayClaim.morningCredit || 0) : 0
+                  return mc > 0 ? `Morning earned ₹${mc}` : 'Morning didn\'t receive'
+                })()}
               </span>
               <span className={"inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm border border-gray-200 bg-white text-gray-700"}>
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
-                Evening {todayClaim?.eveningEligible ? `earned ₹${todayClaim.eveningCredit}` : "didn't receive"}
+                {(() => {
+                  const ec = todayClaim ? Number(todayClaim.eveningCredit || 0) : 0
+                  return ec > 0 ? `Evening earned ₹${ec}` : 'Evening didn\'t receive'
+                })()}
               </span>
             </div>
           </div>
@@ -478,7 +520,7 @@ function Dashboard() {
                   disabled={loading || !monthSummary || (monthSummary?.remaining ?? 0) <= 0}
                   className="w-full bg-black text-white py-2 px-4 rounded-lg hover:bg-gray-300 hover:text-black shadow-sm disabled:opacity-50"
                 >
-                  {loading ? 'Processing...' : 'Claim Remaining for Month'}
+                  {loading ? 'Processing...' : 'Request Remaining for Month'}
                 </button>
               </div>
             </div>
