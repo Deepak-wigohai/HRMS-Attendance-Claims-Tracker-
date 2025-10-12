@@ -99,13 +99,13 @@ function MonthlyClaims() {
 
   return (
     <SidebarLayout title="Monthly Claims">
-      <div>
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="flex flex-col md:flex-row md:items-end gap-4">
+      <div className="flex flex-col items-center">
+        <div className="bg-white rounded-lg shadow p-6 mb-6 w-full max-w-4xl">
+          <div className="flex flex-col md:flex-row md:items-end gap-4 justify-center">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Month</label>
               <select
-                className={`rounded-lg px-3 py-2 ${viewMode === 'monthly' ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : ''}`}
+                className={`bg-white rounded-lg px-3 py-2 border border-gray-200 shadow-sm ${viewMode === 'monthly' ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : ''}`}
                 value={month}
                 onChange={(e) => setMonth(parseInt(e.target.value, 10))}
                 disabled={viewMode === 'monthly'}
@@ -119,7 +119,7 @@ function MonthlyClaims() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
               <input
                 type="number"
-                className="rounded-lg px-3 py-2 w-28"
+                className="bg-white rounded-lg px-3 py-2 border border-gray-200 shadow-sm w-28"
                 value={year}
                 onChange={(e) => setYear(parseInt(e.target.value, 10))}
               />
@@ -127,7 +127,7 @@ function MonthlyClaims() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">View</label>
               <select
-                className="rounded-lg px-3 py-2"
+                className="bg-white rounded-lg px-3 py-2 border border-gray-200 shadow-sm"
                 value={viewMode}
                 onChange={(e) => setViewMode((e.target.value as 'daily' | 'monthly'))}
               >
@@ -142,7 +142,7 @@ function MonthlyClaims() {
         </div>
 
         {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">{error}</div>
+          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg w-full max-w-4xl text-center">{error}</div>
         )}
 
         {loading ? (
@@ -155,40 +155,40 @@ function MonthlyClaims() {
         ) : (
           <>
             {/* Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 w-full max-w-4xl">
               <div className="bg-white rounded-lg shadow p-6">
-                <div className="text-sm text-gray-600">Claims Made</div>
-                <div className="text-2xl font-bold">{summaryCount}</div>
+                <div className="text-sm text-gray-600 text-center">Claims Made</div>
+                <div className="text-2xl font-bold text-center">{summaryCount}</div>
               </div>
               <div className="bg-white rounded-lg shadow p-6">
-                <div className="text-sm text-gray-600">Total Claimed</div>
-                <div className="text-2xl font-bold">₹{summaryTotal}</div>
+                <div className="text-sm text-gray-600 text-center">Total Claimed</div>
+                <div className="text-2xl font-bold text-center">₹{summaryTotal}</div>
               </div>
             </div>
 
             {viewMode === 'daily' && (
-              <div className="bg-white rounded-lg shadow overflow-hidden mb-6">
-                <div className="px-6 py-4 border-b text-sm font-semibold text-gray-700">Claimed Days</div>
+              <div className="bg-white rounded-lg shadow overflow-hidden mb-6 w-full max-w-4xl">
+                <div className="px-6 py-4 border-b text-sm font-semibold text-gray-700 text-center">Claimed Days</div>
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Claimed At</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Note</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Claimed At</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Note</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {data?.claims?.length ? (
                       data.claims.map((c) => (
                         <tr key={c.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{c.claimedAt ? new Date(c.claimedAt).toLocaleString() : '-'}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right">₹{c.amount}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{c.note || '-'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{c.claimedAt ? new Date(c.claimedAt).toLocaleString() : '-'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-center">₹{c.amount}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-center">{c.note || '-'}</td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td className="px-6 py-4 text-sm text-gray-500" colSpan={3}>No claims for this month.</td>
+                        <td className="px-6 py-4 text-sm text-gray-500 text-center" colSpan={3}>No claims for this month.</td>
                       </tr>
                     )}
                   </tbody>
@@ -197,14 +197,14 @@ function MonthlyClaims() {
             )}
 
             {viewMode === 'monthly' && (
-              <div className="bg-white rounded-lg shadow overflow-hidden">
-                <div className="px-6 py-4 border-b text-sm font-semibold text-gray-700">Monthly Claims</div>
+              <div className="bg-white rounded-lg shadow overflow-hidden w-full max-w-4xl">
+                <div className="px-6 py-4 border-b text-sm font-semibold text-gray-700 text-center">Monthly Claims</div>
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -212,17 +212,17 @@ function MonthlyClaims() {
                       const monthlyClaims = (yearClaims || []).filter((c) => (c.note || '').toLowerCase().startsWith('monthly claim'))
                       return monthlyClaims.length ? monthlyClaims.map((c) => (
                         <tr key={`${c.id}`}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                             {c.claimedAt ? new Date(c.claimedAt).toLocaleString(undefined, { month: 'long', year: 'numeric' }) : '-'}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                             {c.claimedAt ? new Date(c.claimedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right">₹{c.amount}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-center">₹{c.amount}</td>
                         </tr>
                       )) : (
                         <tr>
-                          <td className="px-6 py-4 text-sm text-gray-500" colSpan={3}>No monthly claims for this year.</td>
+                          <td className="px-6 py-4 text-sm text-gray-500 text-center" colSpan={3}>No monthly claims for this year.</td>
                         </tr>
                       )
                     })()}

@@ -22,7 +22,8 @@ function Login() {
         if (response.error) {
           setError(response.error)
         } else {
-          navigate('/dashboard')
+          const role = apiService.getRole()
+          navigate(role === 'admin' ? '/admin' : '/dashboard')
         }
       })
       .catch(() => setError('Login failed. Please try again.'))
@@ -88,7 +89,7 @@ function Login() {
               />
             </div>
 
-            {/* Remember Me & Forgot Password */}
+            {/* Remember Me & Admin hint */}
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <input
@@ -101,10 +102,8 @@ function Login() {
                   Remember me
                 </label>
               </div>
-              <div className="text-sm">
-                <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
-                  Forgot password?
-                </a>
+              <div className="text-sm text-gray-600">
+                Login as <span className="font-semibold">User</span> / <span className="font-semibold">Admin</span>
               </div>
             </div>
 

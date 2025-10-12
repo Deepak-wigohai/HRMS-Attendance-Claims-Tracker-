@@ -331,7 +331,7 @@ function Dashboard() {
                 {new Date().toLocaleDateString()}
               </p>
               {todayClaim && (
-                <div className="mt-4 text-xs text-gray-600 space-y-1">
+                <div className="mt-4 text-xs text-gray-600">
                   <div>
                     <span className="font-medium">First login:</span>{' '}
                     {(() => {

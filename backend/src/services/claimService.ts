@@ -38,15 +38,15 @@ const computeTodayClaim = async (userId: number): Promise<ClaimResult> => {
     creditEventsRepo.getByDate(userId, businessIsoDate),
   ]);
 
-  const morningRate = userIncentives?.morning_incentive ?? 100;
-  const eveningRate = userIncentives?.evening_incentive ?? 100;
+  const morningRate = Math.max(0, userIncentives?.morning_incentive ?? 100);
+  const eveningRate = Math.max(0, userIncentives?.evening_incentive ?? 100);
 
-  const morningEligible = isAtOrBefore(first_login, 8, 0);
-  const eveningEligible = isAtOrAfter(last_logout, 19, 0);
+  const morningEligible = isAtOrBefore(first_login, 8, 0) && morningRate > 0;
+  const eveningEligible = isAtOrAfter(last_logout, 19, 0) && eveningRate > 0;
 
   // Show only amounts actually recorded for today
-  const morningCredit = Number(recorded?.morning_credit || 0);
-  const eveningCredit = Number(recorded?.evening_credit || 0);
+  const morningCredit = morningRate > 0 ? Number(recorded?.morning_credit || 0) : 0;
+  const eveningCredit = eveningRate > 0 ? Number(recorded?.evening_credit || 0) : 0;
   const totalCredit = Number(recorded?.total_credit || (morningCredit + eveningCredit));
 
   return {

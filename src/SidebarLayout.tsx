@@ -39,18 +39,31 @@ function NavItem({ to, label, Icon }: { to: string; label: string; Icon: (p: Ico
 
 export default function SidebarLayout({ title, children }: { title: string; children: ReactNode }) {
   const [profileOpen, setProfileOpen] = useState(false)
+  const role = (typeof window !== 'undefined' ? (localStorage.getItem('role') as 'admin' | 'user' | null) : null) || 'user'
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <aside className="w-64 bg-white shadow-md flex flex-col">
         <div className="h-16 flex items-center px-4">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-indigo-600/10 text-indigo-700 flex items-center justify-center font-bold">HR</div>
-            <span className="text-lg font-semibold text-gray-900">HRMS</span>
+          <div className="flex items-center">
+            <img 
+              src="/wigohai.webp" 
+              alt="Wigohai" 
+              className="h-22 w-22 rounded-lg object-contain"
+            />
           </div>
         </div>
         <nav className="p-4 space-y-1">
-          <NavItem to="/dashboard" label="Dashboard" Icon={DashboardIcon} />
-          <NavItem to="/claims" label="Monthly Claims" Icon={CalendarIcon} />
+          {role === 'admin' ? (
+            <>
+              <NavItem to="/admin" label="Dashboard" Icon={DashboardIcon} />
+              <NavItem to="/admin/users" label="Manage Users" Icon={CalendarIcon} />
+            </>
+          ) : (
+            <>
+              <NavItem to="/dashboard" label="Dashboard" Icon={DashboardIcon} />
+              <NavItem to="/claims" label="Monthly Claims" Icon={CalendarIcon} />
+            </>
+          )}
         </nav>
         
       </aside>

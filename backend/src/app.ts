@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const dotenv = require("dotenv");
+const apiRoutes = express.Router();
 
 import type { Request, Response } from "express";
 
@@ -19,13 +20,17 @@ const attendanceRoutes = require("./routes/attendanceRoutes");
 const claimRoutes = require("./routes/claimRoutes");
 const userRoutes = require("./routes/userRoutes");
 
-app.use("/api/auth", authRoutes);
-app.use("/api/attendance", attendanceRoutes);
-app.use("/api/claims", claimRoutes);
-app.use("/api/user", userRoutes);
+
+apiRoutes.use("/auth", authRoutes);
+apiRoutes.use("/attendance", attendanceRoutes);
+apiRoutes.use("/claims", claimRoutes);
+apiRoutes.use("/user", userRoutes);
+
+app.use("/api", apiRoutes);
+
 
 app.get("/", (_: Request, res: Response) => {
-  res.send("🚀 Server is running...");
+  res.send("Server is running...");
 });
 
 module.exports = app;

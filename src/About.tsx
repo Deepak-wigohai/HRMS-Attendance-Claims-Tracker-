@@ -19,6 +19,7 @@ export default function About() {
   const [incentives, setIncentives] = useState<UserIncentives | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const role = (typeof window !== 'undefined' ? (localStorage.getItem('role') as 'admin' | 'user' | null) : null) || 'user'
 
   useEffect(() => {
     setLoading(true)
@@ -82,23 +83,25 @@ export default function About() {
           </div>
         </div>
 
-        <div className="space-y-6">
-          <div className="bg-white rounded-xl shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Incentives</h3>
-            {incentives && (
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Morning:</span>
-                  <span className="font-semibold">₹{incentives.morning_incentive}</span>
+        {role !== 'admin' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Incentives</h3>
+              {incentives && (
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Morning:</span>
+                    <span className="font-semibold">₹{incentives.morning_incentive}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Evening:</span>
+                    <span className="font-semibold">₹{incentives.evening_incentive}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Evening:</span>
-                  <span className="font-semibold">₹{incentives.evening_incentive}</span>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </SidebarLayout>
   )

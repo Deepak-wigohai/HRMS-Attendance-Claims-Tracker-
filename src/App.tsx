@@ -1,5 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
 import Login from './Login'
+import AdminDashboard from './AdminDashboard'
+import AdminUsers from './AdminUsers'
 import Signup from './Signup'
 import Dashboard from './Dashboard'
 import MonthlyClaims from './MonthlyClaims'
@@ -29,6 +31,15 @@ function Welcome() {
           </div>
         </div>
       </div>
+      
+      {/* Wigohai logo at the bottom */}
+      <div className="fixed bottom-4 right-4">
+        <img 
+          src="/wigohai.webp" 
+          alt="Wigohai" 
+          className="w-16 h-16 object-contain"
+        />
+      </div>
     </div>
   )
 }
@@ -41,6 +52,8 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin/users" element={<AdminUsers />} />
         <Route path="/claims" element={<MonthlyClaims />} />
         <Route path="/about" element={<About />} />
       </Routes>

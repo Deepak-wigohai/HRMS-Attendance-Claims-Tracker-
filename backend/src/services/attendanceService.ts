@@ -22,9 +22,11 @@ const login = (userId: number) => {
     return userRepo
       .getUserIncentivesById(userId)
       .then((incentives: any) => incentives?.morning_incentive ?? 100)
-      .then((amount: number) =>
-        creditEvents.upsertMorning(userId, toBusinessIsoDate(now), amount).then(() => res)
-      );
+      .then((amount: number) => (amount > 0 ? amount : 0))
+      .then((amount: number) => {
+        if (amount <= 0) return res; // skip crediting (e.g., admins have 0)
+        return creditEvents.upsertMorning(userId, toBusinessIsoDate(now), amount).then(() => res);
+      });
   });
 };
 
@@ -40,9 +42,11 @@ const logout = (userId: number) => {
       return userRepo
         .getUserIncentivesById(userId)
         .then((incentives: any) => incentives?.evening_incentive ?? 100)
-        .then((amount: number) =>
-          creditEvents.upsertEvening(userId, toBusinessIsoDate(now), amount).then(() => res)
-        );
+        .then((amount: number) => (amount > 0 ? amount : 0))
+        .then((amount: number) => {
+          if (amount <= 0) return res; // skip crediting
+          return creditEvents.upsertEvening(userId, toBusinessIsoDate(now), amount).then(() => res);
+        });
     });
   });
 };

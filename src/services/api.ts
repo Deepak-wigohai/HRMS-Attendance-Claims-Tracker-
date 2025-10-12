@@ -1,5 +1,5 @@
 // API service for backend integration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+const API_BASE_URL = '/api'
 
 interface ApiResponse<T> {
   data?: T
@@ -66,15 +66,25 @@ class ApiService {
   }
 
   login(email: string, password: string) {
-    return this.request<{ token: string }>('/auth/login', {
+    return this.request<{ token: string; role?: 'admin' | 'user' }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }).then((response) => {
-      if (response.data?.token) {
-        this.setToken(response.data.token)
-      }
+      const token = response.data?.token
+      const role = (response.data?.role as 'admin' | 'user' | undefined) || 'user'
+      if (token) this.setToken(token)
+      try { localStorage.setItem('role', role) } catch {}
       return response
     })
+  }
+
+  getRole(): 'admin' | 'user' {
+    try {
+      const r = localStorage.getItem('role') as 'admin' | 'user' | null
+      return (r || 'user')
+    } catch {
+      return 'user'
+    }
   }
 
   // Attendance endpoints
