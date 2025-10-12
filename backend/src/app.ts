@@ -19,10 +19,10 @@ const attendanceRoutes = require("./routes/attendanceRoutes");
 const claimRoutes = require("./routes/claimRoutes");
 const userRoutes = require("./routes/userRoutes");
 
-app.use("/auth", authRoutes);
-app.use("/attendance", attendanceRoutes);
-app.use("/claims", claimRoutes);
-app.use("/user", userRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/attendance", attendanceRoutes);
+app.use("/api/claims", claimRoutes);
+app.use("/api/user", userRoutes);
 
 app.get("/", (_: Request, res: Response) => {
   res.send("🚀 Server is running...");
