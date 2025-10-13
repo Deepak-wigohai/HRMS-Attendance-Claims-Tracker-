@@ -1,39 +1,154 @@
 import SidebarLayout from './SidebarLayout'
 import { useEffect, useState } from 'react'
 import api from './services/api'
+import { io } from 'socket.io-client'
 
 export default function AdminDashboard() {
   const [overview, setOverview] = useState<{ totalUsers: number; totalAdmins: number; presentToday: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [events, setEvents] = useState<Array<{ type: 'login' | 'logout'; userId: number; email?: string | null; at: string }>>([])
+  const [userMap, setUserMap] = useState<Record<number, string>>({})
+  const now = new Date()
+  const dateParts = new Intl.DateTimeFormat(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).formatToParts(now)
+  const monthText = dateParts.find((p) => p.type === 'month')?.value || ''
+  const dayText = dateParts.find((p) => p.type === 'day')?.value || ''
+  const weekdayText = dateParts.find((p) => p.type === 'weekday')?.value || ''
+  const yearText = dateParts.find((p) => p.type === 'year')?.value || ''
+
+  const computeFirstLogins = (arr: Array<{ type: 'login' | 'logout'; userId: number; email?: string | null; at: string }>) => {
+    const map: Record<string, { type: 'login'; userId: number; email?: string | null; at: string }> = {}
+    for (const e of arr) {
+      if (e.type !== 'login') continue
+      const dateKey = new Date(e.at).toISOString().slice(0, 10)
+      const key = `${e.userId}-${dateKey}`
+      const prev = map[key]
+      if (!prev || new Date(e.at).getTime() < new Date(prev.at).getTime()) {
+        map[key] = { type: 'login', userId: e.userId, email: e.email, at: e.at }
+      }
+    }
+    return Object.values(map).sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+  }
 
   useEffect(() => {
-    api.getAdminOverview()
+    Promise.all([api.getAdminOverview(), api.getAdminActivity(), api.getAdminUsersMin()])
       .then((res) => {
-        if (res.error) return setError(res.error)
-        setOverview(res.data as any)
+        const [ov, act, users] = res as any
+        if (ov.error) return setError(ov.error)
+        setOverview(ov.data as any)
+        if (!act.error) {
+          const list = (act.data?.events || []) as Array<{ type: 'login' | 'logout'; userId: number; email?: string | null; at: string }>
+          setEvents(computeFirstLogins(list).slice(0, 200))
+        }
+        if (!users.error) {
+          const m: Record<number, string> = {}
+          for (const u of users.data?.users || []) m[Number(u.id)] = String(u.email || '')
+          setUserMap(m)
+        }
       })
       .catch(() => setError('Failed to load admin overview'))
+    const socket = io('http://localhost:5000', { path: '/socket.io', transports: ['websocket'] })
+    socket.on('attendance:login', (p: any) => {
+      setEvents((prev: Array<{ type: 'login' | 'logout'; userId: number; email?: string | null; at: string }>) => {
+        const merged = [{ type: 'login' as const, userId: Number(p.userId), at: String(p.at) }, ...prev]
+        return computeFirstLogins(merged).slice(0, 500)
+      })
+      setOverview((o) => (o ? { ...o, presentToday: (o.presentToday || 0) + 1 } : o))
+    })
+    socket.on('attendance:logout', () => {
+      // Do not add logout rows to the table; only update present count
+      setOverview((o) => (o ? { ...o, presentToday: Math.max(0, (o.presentToday || 0) - 1) } : o))
+    })
+    // Claims live status disabled per request
+    return () => { socket.close() }
   }, [])
 
   return (
     <SidebarLayout title="Admin Dashboard">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Welcome, Admin</h2>
+        <p className="text-gray-600">Here’s what’s happening today.</p>
+      </div>
       {error && (
         <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">{error}</div>
       )}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-sm text-gray-600">Total Users</div>
-          <div className="text-2xl font-bold">{overview?.totalUsers ?? '-'}</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
+        {/* Large date/time text (not a card) */}
+        <div className="flex flex-col justify-center h-full">
+          <div className="text-base sm:text-lg font-normal text-gray-600">{monthText}</div>
+          <div className="mt-1 text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900">
+            <span>{`${weekdayText} ${dayText}`}</span>
+            {yearText ? <span className="font-normal text-gray-600">, {yearText}</span> : null}
+          </div>
+          <div className="mt-2 text-2xl sm:text-3xl font-semibold text-gray-700">
+            {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-sm text-gray-600">Admins</div>
-          <div className="text-2xl font-bold">{overview?.totalAdmins ?? '-'}</div>
+        {/* Right-side cards grid with tall Present Today on the left */}
+        <div className="grid grid-cols-2 grid-rows-2 gap-4 h-full">
+          <div className="row-span-2 bg-white rounded-lg shadow p-6 text-center flex flex-col justify-center">
+            <div className="text-sm tracking-wide text-gray-600">Present Today</div>
+            <div className="text-7xl font-extrabold mt-1">{overview?.presentToday ?? '-'}</div>
+          </div>
+          <div className="bg-white rounded-md shadow-sm p-4 text-center flex flex-col justify-center">
+            <div className="text-sm tracking-wide text-gray-600">Admins</div>
+            <div className="text-4xl font-extrabold mt-1">{overview?.totalAdmins ?? '-'}</div>
+          </div>
+          <div className="bg-white rounded-md shadow-sm p-4 text-center flex flex-col justify-center">
+            <div className="text-sm tracking-wide text-gray-600">Users</div>
+            <div className="text-4xl font-extrabold mt-1">{overview?.totalUsers ?? '-'}</div>
+          </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-sm text-gray-600">Present Today</div>
-          <div className="text-2xl font-bold">{overview?.presentToday ?? '-'}</div>
+        <div className="md:col-span-2 bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-2xl font-bold text-gray-900">Live Activity (24h)</h3>
+          </div>
+          <div className="overflow-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-center text-sm font-medium text-gray-500 uppercase tracking-wider">User</th>
+                  <th className="px-6 py-3 text-center text-sm font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                  <th className="px-6 py-3 text-center text-sm font-medium text-gray-500 uppercase tracking-wider">Punctuality</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {events.length === 0 ? (
+                  <tr>
+                    <td className="px-6 py-4 text-base text-gray-500 text-center" colSpan={3}>No activity in the last 24 hours.</td>
+                  </tr>
+                ) : (
+                  events.filter((e) => e.type === 'login').slice(0, 200).map((e, idx) => (
+                    <tr key={idx}>
+                      <td className="px-6 py-3 text-base text-gray-700 text-center">
+                        {(() => {
+                          const email = e.email || userMap[e.userId] || `user-${e.userId}`
+                          const name = String(email).split('@')[0] || `user-${e.userId}`
+                          return name
+                        })()}
+                      </td>
+                      <td className="px-6 py-3 text-base text-gray-900 text-center">{new Date(e.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                      <td className="px-6 py-3 text-base font-medium text-center">
+                        {(() => {
+                          // Late badge: only meaningful for login events
+                          const d = new Date(e.at)
+                          const late = e.type === 'login' && (d.getHours() > 8 || (d.getHours() === 8 && d.getMinutes() > 0))
+                          const label = e.type === 'login' ? (late ? 'Late' : 'On time') : '—'
+                          const cls = e.type !== 'login' ? 'bg-gray-100 text-gray-700' : (late ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800')
+                          return (
+                            <span className={`inline-flex items-center px-3 py-0.5 rounded-full text-sm font-semibold ${cls}`}>
+                              {label}
+                            </span>
+                          )
+                        })()}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </SidebarLayout>

@@ -18,6 +18,7 @@ const login = (userId: number) => {
   const now = new Date();
   const shouldCreditMorning = isAtOrBefore(now, 8, 0);
   return attendanceRepo.createLogin(userId).then((res: any) => {
+    try { require('../realtime').getIO()?.emit('attendance:login', { userId, at: new Date().toISOString() }); } catch {}
     if (!shouldCreditMorning) return res;
     return userRepo
       .getUserIncentivesById(userId)
@@ -25,7 +26,10 @@ const login = (userId: number) => {
       .then((amount: number) => (amount > 0 ? amount : 0))
       .then((amount: number) => {
         if (amount <= 0) return res; // skip crediting (e.g., admins have 0)
-        return creditEvents.upsertMorning(userId, toBusinessIsoDate(now), amount).then(() => res);
+        return creditEvents.upsertMorning(userId, toBusinessIsoDate(now), amount).then(() => {
+          try { require('../realtime').getIO()?.emit('claims:update', { userId, type: 'morning', amount, date: toBusinessIsoDate(now) }); } catch {}
+          return res;
+        });
       });
   });
 };
@@ -34,6 +38,7 @@ const logout = (userId: number) => {
   const now = new Date();
   const shouldCreditEveningByTime = isAtOrAfter(now, 19, 0);
   return attendanceRepo.setLogout(userId).then((res: any) => {
+    try { require('../realtime').getIO()?.emit('attendance:logout', { userId, at: new Date().toISOString() }); } catch {}
     if (!shouldCreditEveningByTime) return res;
     // If the user's first login today was after evening cutoff, do not award any evening credit
     return attendanceRepo.getTodayDayBounds(userId).then(({ first_login }: { first_login: Date | null }) => {
@@ -45,7 +50,10 @@ const logout = (userId: number) => {
         .then((amount: number) => (amount > 0 ? amount : 0))
         .then((amount: number) => {
           if (amount <= 0) return res; // skip crediting
-          return creditEvents.upsertEvening(userId, toBusinessIsoDate(now), amount).then(() => res);
+          return creditEvents.upsertEvening(userId, toBusinessIsoDate(now), amount).then(() => {
+            try { require('../realtime').getIO()?.emit('claims:update', { userId, type: 'evening', amount, date: toBusinessIsoDate(now) }); } catch {}
+            return res;
+          });
         });
     });
   });

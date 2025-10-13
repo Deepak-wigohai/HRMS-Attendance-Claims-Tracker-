@@ -157,6 +157,14 @@ class ApiService {
     return this.request<{ totalUsers: number; totalAdmins: number; presentToday: number }>('/admin/overview')
   }
 
+  getAdminActivity() {
+    return this.request<{ events: Array<{ type: 'login' | 'logout'; userId: number; email?: string | null; at: string }> }>('/admin/activity')
+  }
+
+  getAdminUsersMin() {
+    return this.request<{ users: Array<{ id: number; email: string; role?: 'admin' | 'user' }> }>('/admin/users-min')
+  }
+
   // User endpoints
   getUserProfile() {
     return this.request('/user/profile')
