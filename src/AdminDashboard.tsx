@@ -81,9 +81,9 @@ export default function AdminDashboard() {
         {/* Large date/time text (not a card) */}
         <div className="flex flex-col justify-center h-full space-y-2 sm:space-y-3">
           <div className="text-lg sm:text-xl font-normal text-gray-600">{monthText}</div>
-          <div className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-gray-900">
+          <div className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-gray-900">
             <span>{`${weekdayText} ${dayText}`}</span>
-            {yearText ? <span className="font-normal text-gray-600">, {yearText}</span> : null}
+            {yearText ? <span className="text-3xl sm:text-3xl md:text-4xl font-normal text-gray-600">, {yearText}</span> : null}
           </div>
           <div className="text-2xl sm:text-3xl font-semibold text-gray-700">
             {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -94,13 +94,13 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-2 grid-rows-2 gap-4 h-full">
           <div className="row-span-2 bg-white rounded-lg shadow p-6 text-center flex flex-col justify-center">
             <div className="text-sm tracking-wide text-gray-600">Present Today</div>
-            <div className="text-7xl font-extrabold mt-1">{overview?.presentToday ?? '-'}</div>
+            <div className="text-6xl font-extrabold mt-1">{overview?.presentToday ?? '-'}</div>
           </div>
-          <div className="bg-white rounded-md shadow-sm p-4 text-center flex flex-col justify-center w-44 md:w-56">
+          <div className="bg-white rounded-lg shadow-sm p-4 text-center flex flex-col justify-center w-44 md:w-56">
             <div className="text-sm tracking-wide text-gray-600">Admins</div>
             <div className="text-4xl font-extrabold mt-1">{overview?.totalAdmins ?? '-'}</div>
           </div>
-          <div className="bg-white rounded-md shadow-sm p-4 text-center flex flex-col justify-center w-44 md:w-56">
+          <div className="bg-white rounded-lg shadow-sm p-4 text-center flex flex-col justify-center w-44 md:w-56">
             <div className="text-sm tracking-wide text-gray-600">Users</div>
             <div className="text-4xl font-extrabold mt-1">{overview?.totalUsers ?? '-'}</div>
           </div>
@@ -109,7 +109,7 @@ export default function AdminDashboard() {
         {/* Right column: Current month claims history */}
         <div className="md:col-span-1 md:col-start-2 md:row-start-2 bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-2xl font-bold text-gray-900">Claims This Month</h3>
+            <h3 className="text-xl font-bold text-gray-900">Claims This Month</h3>
           </div>
           <div className="overflow-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -155,7 +155,7 @@ export default function AdminDashboard() {
 
         <div className="md:col-span-1 md:col-start-1 md:row-start-2 bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-2xl font-bold text-gray-900">Live Activity (24h)</h3>
+            <h3 className="text-xl font-bold text-gray-900">Live Activity (24h)</h3>
           </div>
           <div className="overflow-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -194,7 +194,7 @@ export default function AdminDashboard() {
                         {(() => {
                           // Late badge: only meaningful for login events
                           const d = new Date(e.at)
-                          const late = e.type === 'login' && (d.getHours() > 12 || (d.getHours() === 12 && d.getMinutes() > 0));
+                          const late = e.type === 'login' && (d.getHours() > 8 || (d.getHours() === 8 && d.getMinutes() > 0));
                           const label = e.type === 'login' ? (late ? 'Late' : 'On time') : '—'
                           const cls = e.type !== 'login' ? 'bg-gray-100 text-gray-700' : (late ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800')
                           return (

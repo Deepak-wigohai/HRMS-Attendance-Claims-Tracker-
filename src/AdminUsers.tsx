@@ -11,7 +11,7 @@ export default function AdminUsers() {
   const [query, setQuery] = useState<string>('')
   const [page, setPage] = useState<number>(1)
   const [pageSize, setPageSize] = useState<number>(10)
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  
   const [overview, setOverview] = useState<{ totalUsers: number; totalAdmins: number } | null>(null)
 
   useEffect(() => {
@@ -42,25 +42,7 @@ export default function AdminUsers() {
     return filtered.slice(start, start + pageSize)
   }, [filtered, currentPage, pageSize])
 
-  const allOnPageSelected = paged.length > 0 && paged.every((u) => selectedIds.has(u.id))
-  const toggleSelectAll = () => {
-    const next = new Set(selectedIds)
-    if (allOnPageSelected) {
-      for (const u of paged) next.delete(u.id)
-    } else {
-      for (const u of paged) next.add(u.id)
-    }
-    setSelectedIds(next)
-  }
-
-  const toggleSelect = (id: number) => {
-    const next = new Set(selectedIds)
-    if (next.has(id)) next.delete(id)
-    else next.add(id)
-    setSelectedIds(next)
-  }
-
-  const selectedCount = selectedIds.size
+  
 
   const handleDelete = (id: number, email: string) => {
     if (!confirm(`Delete user ${email}? This cannot be undone.`)) return
@@ -69,9 +51,7 @@ export default function AdminUsers() {
       .then((res: any) => {
         if (res?.error) return setError(res.error)
         setUsers((prev) => prev.filter((u) => u.id !== id))
-        setSelectedIds((prev) => {
-          const next = new Set(prev); next.delete(id); return next
-        })
+        // selection removed; no-op
       })
       .catch(() => setError('Failed to delete user'))
       .finally(() => setLoading(false))
@@ -87,10 +67,6 @@ export default function AdminUsers() {
         <div className="bg-white rounded-lg shadow p-4">
           <div className="text-xs tracking-wide text-gray-500">Admins</div>
           <div className="text-2xl font-bold text-gray-900 mt-1">{overview?.totalAdmins ?? '—'}</div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-xs tracking-wide text-gray-500">Selected</div>
-          <div className="text-2xl font-bold text-gray-900 mt-1">{selectedCount}</div>
         </div>
       </div>
 
@@ -138,9 +114,6 @@ export default function AdminUsers() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <input type="checkbox" checked={allOnPageSelected} onChange={toggleSelectAll} />
-                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
@@ -150,16 +123,15 @@ export default function AdminUsers() {
             <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td className="px-6 py-6 text-center text-gray-500" colSpan={5}>Loading users…</td>
+                  <td className="px-6 py-6 text-center text-gray-500" colSpan={4}>Loading users…</td>
                 </tr>
               ) : paged.length === 0 ? (
                 <tr>
-                  <td className="px-6 py-6 text-center text-gray-500" colSpan={5}>No users found.</td>
+                  <td className="px-6 py-6 text-center text-gray-500" colSpan={4}>No users found.</td>
                 </tr>
               ) : (
                 paged.map((u) => (
-                  <tr key={u.id} className={selectedIds.has(u.id) ? 'bg-indigo-50' : undefined}>
-                    <td className="px-6 py-3"><input type="checkbox" checked={selectedIds.has(u.id)} onChange={() => toggleSelect(u.id)} /></td>
+                  <tr key={u.id}>
                     <td className="px-6 py-3 whitespace-nowrap">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-semibold">
