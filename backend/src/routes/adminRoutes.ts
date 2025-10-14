@@ -72,4 +72,94 @@ router.get("/users-min", auth, requireAdmin, async (_req: any, res: any) => {
   }
 });
 
+// GET /api/admin/claims-month?year=YYYY&month=MM - list claims across users for a month
+router.get("/claims-month", auth, requireAdmin, async (req: any, res: any) => {
+  try {
+    const year = parseInt((req.query.year as string) || new Date().getFullYear().toString(), 10);
+    const month = parseInt((req.query.month as string) || (new Date().getMonth() + 1).toString(), 10);
+    if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+      return res.status(400).json({ message: "Invalid year or month" });
+    }
+
+    // If credits_claims table doesn't exist, return empty
+    const existsRes = await pool.query(`SELECT to_regclass($1) AS oid`, ['public.credits_claims']);
+    const exists = Boolean(existsRes.rows?.[0]?.oid);
+    if (!exists) return res.json({ year, month, claims: [] });
+
+    const { rows } = await pool.query(
+      `SELECT c.id, c.user_id, u.email, c.amount, c.note, c.claimed_at
+       FROM credits_claims c
+       JOIN users u ON u.id = c.user_id
+       WHERE date_part('year', c.claimed_at) = $1
+         AND date_part('month', c.claimed_at) = $2
+       ORDER BY c.claimed_at DESC`,
+      [year, month]
+    );
+
+    const claims = rows.map((r: any) => ({
+      id: Number(r.id),
+      userId: Number(r.user_id),
+      email: r.email || null,
+      amount: Number(r.amount || 0),
+      note: r.note || null,
+      claimedAt: r.claimed_at ? new Date(r.claimed_at).toISOString() : null,
+    }));
+
+    res.json({ year, month, claims });
+  } catch (e: any) {
+    res.status(500).json({ message: "Server error", error: e.message });
+  }
+});
+
+// DELETE /api/admin/users/:id - delete a non-admin user and related records
+router.delete("/users/:id", auth, requireAdmin, async (req: any, res: any) => {
+  try {
+    const userId = Number(req.params.id);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({ message: "Invalid user id" });
+    }
+
+    const check = await pool.query(`SELECT role FROM users WHERE id = $1`, [userId]);
+    if (check.rows.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    if (check.rows[0]?.role === 'admin') {
+      return res.status(400).json({ message: "Cannot delete admin user" });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const relatedTables = [
+        'attendance',
+        'claims',
+        'credit_events',
+        'credits_claims',
+        'redeem_requests',
+      ];
+
+      for (const table of relatedTables) {
+        // Only attempt delete if table exists in the current schema
+        const existsRes = await client.query(`SELECT to_regclass($1) AS oid`, [`public.${table}`]);
+        const exists = Boolean(existsRes.rows?.[0]?.oid);
+        if (exists) {
+          await client.query(`DELETE FROM ${table} WHERE user_id = $1`, [userId]);
+        }
+      }
+
+      await client.query(`DELETE FROM users WHERE id = $1`, [userId]);
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+
+    res.json({ message: "User deleted" });
+  } catch (e: any) {
+    res.status(500).json({ message: "Server error", error: e.message });
+  }
+});
+
 

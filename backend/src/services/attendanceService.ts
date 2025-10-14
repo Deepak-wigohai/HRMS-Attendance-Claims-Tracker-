@@ -16,7 +16,7 @@ const isAtOrAfter = (time: Date, hh: number, mm: number) => {
 
 const login = (userId: number) => {
   const now = new Date();
-  const shouldCreditMorning = isAtOrBefore(now, 8, 0);
+  const shouldCreditMorning = isAtOrBefore(now, 12, 0);
   return attendanceRepo.createLogin(userId).then((res: any) => {
     try { require('../realtime').getIO()?.emit('attendance:login', { userId, at: new Date().toISOString() }); } catch {}
     if (!shouldCreditMorning) return res;

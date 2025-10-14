@@ -8,12 +8,15 @@ export default function AdminDashboard() {
   const [error, setError] = useState<string | null>(null)
   const [events, setEvents] = useState<Array<{ type: 'login' | 'logout'; userId: number; email?: string | null; at: string }>>([])
   const [userMap, setUserMap] = useState<Record<number, string>>({})
+  const [claims, setClaims] = useState<Array<{ id: number; userId: number; email?: string | null; amount: number; note?: string | null; claimedAt: string | null }>>([])
   const now = new Date()
   const dateParts = new Intl.DateTimeFormat(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).formatToParts(now)
   const monthText = dateParts.find((p) => p.type === 'month')?.value || ''
   const dayText = dateParts.find((p) => p.type === 'day')?.value || ''
   const weekdayText = dateParts.find((p) => p.type === 'weekday')?.value || ''
   const yearText = dateParts.find((p) => p.type === 'year')?.value || ''
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth() + 1
 
   const computeFirstLogins = (arr: Array<{ type: 'login' | 'logout'; userId: number; email?: string | null; at: string }>) => {
     const map: Record<string, { type: 'login'; userId: number; email?: string | null; at: string }> = {}
@@ -30,9 +33,9 @@ export default function AdminDashboard() {
   }
 
   useEffect(() => {
-    Promise.all([api.getAdminOverview(), api.getAdminActivity(), api.getAdminUsersMin()])
+    Promise.all([api.getAdminOverview(), api.getAdminActivity(), api.getAdminUsersMin(), api.getAdminClaimsMonth(currentYear, currentMonth)])
       .then((res) => {
-        const [ov, act, users] = res as any
+        const [ov, act, users, claimsMonth] = res as any
         if (ov.error) return setError(ov.error)
         setOverview(ov.data as any)
         if (!act.error) {
@@ -44,9 +47,12 @@ export default function AdminDashboard() {
           for (const u of users.data?.users || []) m[Number(u.id)] = String(u.email || '')
           setUserMap(m)
         }
+        if (!claimsMonth?.error) {
+          setClaims((claimsMonth.data?.claims || []) as any)
+        }
       })
       .catch(() => setError('Failed to load admin overview'))
-    const socket = io('http://localhost:5000', { path: '/socket.io', transports: ['websocket'] })
+    const socket = io('http://localhost:5000', { path: '/socket.io' })
     socket.on('attendance:login', (p: any) => {
       setEvents((prev: Array<{ type: 'login' | 'logout'; userId: number; email?: string | null; at: string }>) => {
         const merged = [{ type: 'login' as const, userId: Number(p.userId), at: String(p.at) }, ...prev]
@@ -73,13 +79,13 @@ export default function AdminDashboard() {
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
         {/* Large date/time text (not a card) */}
-        <div className="flex flex-col justify-center h-full">
-          <div className="text-base sm:text-lg font-normal text-gray-600">{monthText}</div>
-          <div className="mt-1 text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900">
+        <div className="flex flex-col justify-center h-full space-y-2 sm:space-y-3">
+          <div className="text-lg sm:text-xl font-normal text-gray-600">{monthText}</div>
+          <div className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-gray-900">
             <span>{`${weekdayText} ${dayText}`}</span>
             {yearText ? <span className="font-normal text-gray-600">, {yearText}</span> : null}
           </div>
-          <div className="mt-2 text-2xl sm:text-3xl font-semibold text-gray-700">
+          <div className="text-2xl sm:text-3xl font-semibold text-gray-700">
             {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </div>
         </div>
@@ -90,17 +96,64 @@ export default function AdminDashboard() {
             <div className="text-sm tracking-wide text-gray-600">Present Today</div>
             <div className="text-7xl font-extrabold mt-1">{overview?.presentToday ?? '-'}</div>
           </div>
-          <div className="bg-white rounded-md shadow-sm p-4 text-center flex flex-col justify-center">
+          <div className="bg-white rounded-md shadow-sm p-4 text-center flex flex-col justify-center w-44 md:w-56">
             <div className="text-sm tracking-wide text-gray-600">Admins</div>
             <div className="text-4xl font-extrabold mt-1">{overview?.totalAdmins ?? '-'}</div>
           </div>
-          <div className="bg-white rounded-md shadow-sm p-4 text-center flex flex-col justify-center">
+          <div className="bg-white rounded-md shadow-sm p-4 text-center flex flex-col justify-center w-44 md:w-56">
             <div className="text-sm tracking-wide text-gray-600">Users</div>
             <div className="text-4xl font-extrabold mt-1">{overview?.totalUsers ?? '-'}</div>
           </div>
         </div>
 
-        <div className="md:col-span-2 bg-white rounded-lg shadow p-6">
+        {/* Right column: Current month claims history */}
+        <div className="md:col-span-1 md:col-start-2 md:row-start-2 bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-2xl font-bold text-gray-900">Claims This Month</h3>
+          </div>
+          <div className="overflow-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-500 uppercase tracking-wider">User</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {claims.length === 0 ? (
+                  <tr>
+                    <td className="px-4 py-4 text-sm text-gray-500 text-center" colSpan={3}>No claims this month.</td>
+                  </tr>
+                ) : (
+                  claims.slice(0, 50).map((c) => (
+                    <tr key={c.id}>
+                      <td className="px-4 py-3 text-sm text-gray-800 text-center">
+                        {(() => {
+                          const email = c.email || userMap[c.userId] || `user-${c.userId}`
+                          const name = String(email).split('@')[0] || `user-${c.userId}`
+                          const letter = String(email).charAt(0).toUpperCase() || 'U'
+                          return (
+                            <div className="flex items-center justify-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-gray-600 text-white flex items-center justify-center font-semibold">
+                                {letter}
+                              </div>
+                              <span>{name}</span>
+                            </div>
+                          )
+                        })()}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900 text-center">₹{Number(c.amount || 0).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 text-center">{c.claimedAt ? new Date(c.claimedAt).toLocaleDateString() : '-'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="md:col-span-1 md:col-start-1 md:row-start-2 bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-2xl font-bold text-gray-900">Live Activity (24h)</h3>
           </div>
@@ -125,7 +178,15 @@ export default function AdminDashboard() {
                         {(() => {
                           const email = e.email || userMap[e.userId] || `user-${e.userId}`
                           const name = String(email).split('@')[0] || `user-${e.userId}`
-                          return name
+                          const letter = String(email).charAt(0).toUpperCase() || 'U'
+                          return (
+                            <div className="flex items-center justify-center gap-2">
+                              <div className="w-7 h-7 rounded-full bg-gray-600 text-white flex items-center justify-center font-semibold">
+                                {letter}
+                              </div>
+                              <span>{name}</span>
+                            </div>
+                          )
                         })()}
                       </td>
                       <td className="px-6 py-3 text-base text-gray-900 text-center">{new Date(e.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
@@ -133,7 +194,7 @@ export default function AdminDashboard() {
                         {(() => {
                           // Late badge: only meaningful for login events
                           const d = new Date(e.at)
-                          const late = e.type === 'login' && (d.getHours() > 8 || (d.getHours() === 8 && d.getMinutes() > 0))
+                          const late = e.type === 'login' && (d.getHours() > 12 || (d.getHours() === 12 && d.getMinutes() > 0));
                           const label = e.type === 'login' ? (late ? 'Late' : 'On time') : '—'
                           const cls = e.type !== 'login' ? 'bg-gray-100 text-gray-700' : (late ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800')
                           return (

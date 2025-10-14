@@ -165,6 +165,16 @@ class ApiService {
     return this.request<{ users: Array<{ id: number; email: string; role?: 'admin' | 'user' }> }>('/admin/users-min')
   }
 
+  getAdminClaimsMonth(year: number, month: number) {
+    return this.request<{ year: number; month: number; claims: Array<{ id: number; userId: number; email?: string | null; amount: number; note?: string | null; claimedAt: string | null }> }>(`/admin/claims-month?year=${year}&month=${month}`)
+  }
+
+  deleteUser(userId: number) {
+    return this.request(`/admin/users/${userId}`, {
+      method: 'DELETE',
+    })
+  }
+
   // User endpoints
   getUserProfile() {
     return this.request('/user/profile')

@@ -62,6 +62,21 @@ export default function AdminUsers() {
 
   const selectedCount = selectedIds.size
 
+  const handleDelete = (id: number, email: string) => {
+    if (!confirm(`Delete user ${email}? This cannot be undone.`)) return
+    setLoading(true)
+    api.deleteUser(id)
+      .then((res: any) => {
+        if (res?.error) return setError(res.error)
+        setUsers((prev) => prev.filter((u) => u.id !== id))
+        setSelectedIds((prev) => {
+          const next = new Set(prev); next.delete(id); return next
+        })
+      })
+      .catch(() => setError('Failed to delete user'))
+      .finally(() => setLoading(false))
+  }
+
   return (
     <SidebarLayout title="Manage Users">
       <div className="mb-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -157,7 +172,13 @@ export default function AdminUsers() {
                     <td className="px-6 py-3 text-gray-600">{u.id}</td>
                     <td className="px-6 py-3">
                       <div className="flex items-center justify-end gap-2">
-                        <button className="px-3 py-1.5 rounded-md border border-red-300 text-red-700 bg-white hover:bg-red-50" disabled>Delete</button>
+                        <button
+                          className="px-3 py-1.5 rounded-md border border-red-300 text-red-700 bg-white hover:bg-red-50 disabled:opacity-50"
+                          onClick={() => handleDelete(u.id, u.email)}
+                          disabled={loading}
+                        >
+                          Delete
+                        </button>
                       </div>
                     </td>
                   </tr>
