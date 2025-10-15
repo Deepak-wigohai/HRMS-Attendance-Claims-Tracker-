@@ -10,8 +10,8 @@ const router = express.Router();
 router.get("/overview", auth, requireAdmin, async (_req: any, res: any) => {
   try {
     const [usersRes, adminsRes, presentRes] = await Promise.all([
-      pool.query(`SELECT COUNT(*)::int AS c FROM users`),
-      pool.query(`SELECT COUNT(*)::int AS c FROM users WHERE role = 'admin'`),
+      pool.query(`SELECT COUNT(*)::int AS c FROM users WHERE deleted_at IS NULL`),
+      pool.query(`SELECT COUNT(*)::int AS c FROM users WHERE role = 'admin' AND deleted_at IS NULL`),
       pool.query(
         `SELECT COUNT(DISTINCT user_id)::int AS c
          FROM attendance
@@ -38,7 +38,7 @@ router.get("/activity", auth, requireAdmin, async (_req: any, res: any) => {
     const { rows } = await pool.query(
       `SELECT a.user_id, u.email, a.login_time, a.logout_time
        FROM attendance a
-       JOIN users u ON u.id = a.user_id
+       JOIN users u ON u.id = a.user_id AND u.deleted_at IS NULL
        WHERE a.login_time >= NOW() - INTERVAL '24 hours'
           OR (a.logout_time IS NOT NULL AND a.logout_time >= NOW() - INTERVAL '24 hours')`
     );
@@ -66,7 +66,7 @@ router.get("/activity", auth, requireAdmin, async (_req: any, res: any) => {
 // GET /api/admin/users-min - id and email list for mapping
 router.get("/users-min", auth, requireAdmin, async (_req: any, res: any) => {
   try {
-    const { rows } = await pool.query(`SELECT id, email, role FROM users`);
+    const { rows } = await pool.query(`SELECT id, email, role FROM users WHERE deleted_at IS NULL`);
     res.json({ users: rows.map((r: any) => ({ id: Number(r.id), email: r.email, role: r.role })) });
   } catch (e: any) {
     res.status(500).json({ message: "Server error", error: e.message });
@@ -90,7 +90,7 @@ router.get("/claims-month", auth, requireAdmin, async (req: any, res: any) => {
     const { rows } = await pool.query(
       `SELECT c.id, c.user_id, u.email, c.amount, c.note, c.claimed_at
        FROM credits_claims c
-       JOIN users u ON u.id = c.user_id
+       JOIN users u ON u.id = c.user_id AND u.deleted_at IS NULL
        WHERE date_part('year', c.claimed_at) = $1
          AND date_part('month', c.claimed_at) = $2
        ORDER BY c.claimed_at DESC`,
@@ -120,44 +120,19 @@ router.delete("/users/:id", auth, requireAdmin, async (req: any, res: any) => {
       return res.status(400).json({ message: "Invalid user id" });
     }
 
-    const check = await pool.query(`SELECT role FROM users WHERE id = $1`, [userId]);
+    const check = await pool.query(`SELECT role, deleted_at FROM users WHERE id = $1`, [userId]);
     if (check.rows.length === 0) {
       return res.status(404).json({ message: "User not found" });
+    }
+    if (check.rows[0]?.deleted_at) {
+      return res.status(400).json({ message: "User already deleted" });
     }
     if (check.rows[0]?.role === 'admin') {
       return res.status(400).json({ message: "Cannot delete admin user" });
     }
 
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-      const relatedTables = [
-        'attendance',
-        'claims',
-        'credit_events',
-        'credits_claims',
-        'redeem_requests',
-      ];
-
-      for (const table of relatedTables) {
-        // Only attempt delete if table exists in the current schema
-        const existsRes = await client.query(`SELECT to_regclass($1) AS oid`, [`public.${table}`]);
-        const exists = Boolean(existsRes.rows?.[0]?.oid);
-        if (exists) {
-          await client.query(`DELETE FROM ${table} WHERE user_id = $1`, [userId]);
-        }
-      }
-
-      await client.query(`DELETE FROM users WHERE id = $1`, [userId]);
-      await client.query('COMMIT');
-    } catch (e) {
-      await client.query('ROLLBACK');
-      throw e;
-    } finally {
-      client.release();
-    }
-
-    res.json({ message: "User deleted" });
+    await pool.query(`UPDATE users SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, [userId]);
+    res.json({ message: "User soft-deleted" });
   } catch (e: any) {
     res.status(500).json({ message: "Server error", error: e.message });
   }

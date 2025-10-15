@@ -31,7 +31,7 @@ const listAll = () => {
     .query(
       `SELECT rr.*, u.email
        FROM redeem_requests rr
-       JOIN users u ON u.id = rr.user_id
+       JOIN users u ON u.id = rr.user_id AND u.deleted_at IS NULL
        ORDER BY rr.created_at DESC`
     )
     .then((res: any) => res.rows);

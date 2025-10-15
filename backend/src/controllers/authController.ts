@@ -38,7 +38,7 @@ const login = (req: Request, res: Response) => {
 
     // Check user
     pool
-      .query("SELECT * FROM users WHERE email = $1", [email])
+      .query("SELECT * FROM users WHERE email = $1 AND deleted_at IS NULL", [email])
       .then((userCheck: any) => {
         if (userCheck.rows.length === 0) {
           return res.status(400).json({ message: "Invalid credentials" });

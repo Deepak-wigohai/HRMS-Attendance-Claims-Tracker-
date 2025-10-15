@@ -17,7 +17,7 @@ const getUserIncentivesById = (userId: number): Promise<UserIncentives | null> =
     .query(
       `SELECT morning_incentive, evening_incentive
        FROM users
-       WHERE id = $1`,
+       WHERE id = $1 AND deleted_at IS NULL`,
       [userId]
     )
     .then((result: any) => {
@@ -38,7 +38,7 @@ const getUserProfileById = (userId: number): Promise<UserProfile | null> => {
     .query(
       `SELECT id, email, morning_incentive, evening_incentive
        FROM users
-       WHERE id = $1`,
+       WHERE id = $1 AND deleted_at IS NULL`,
       [userId]
     )
     .then((result: any) => {
@@ -53,6 +53,10 @@ const getUserProfileById = (userId: number): Promise<UserProfile | null> => {
     });
 };
 
-module.exports = { getUserIncentivesById, getUserProfileById };
+const softDeleteById = (userId: number) => {
+  return pool.query(`UPDATE users SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL RETURNING id`, [userId]).then((r: any) => r.rows[0] || null);
+};
+
+module.exports = { getUserIncentivesById, getUserProfileById, softDeleteById };
 
 
