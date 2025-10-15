@@ -14,9 +14,13 @@ const isAtOrAfter = (time: Date, hh: number, mm: number) => {
   return h > hh || (h === hh && m >= mm);
 };
 
-const login = (userId: number) => {
+const login = async (userId: number) => {
   const now = new Date();
   const shouldCreditMorning = isAtOrBefore(now, 8, 0);
+  const hasOpen = await attendanceRepo.hasOpenLoginToday(userId);
+  if (hasOpen) {
+    throw new Error("Active session exists. Please punch out first.");
+  }
   return attendanceRepo.createLogin(userId).then((res: any) => {
     try { require('../realtime').getIO()?.emit('attendance:login', { userId, at: new Date().toISOString() }); } catch {}
     if (!shouldCreditMorning) return res;

@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
 import Login from './Login'
 import AdminDashboard from './AdminDashboard'
 import AdminUsers from './AdminUsers'
+import AdminClaims from './AdminClaims'
 import Signup from './Signup'
 import Dashboard from './Dashboard'
 import MonthlyClaims from './MonthlyClaims'
@@ -54,6 +55,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/users" element={<AdminUsers />} />
+        <Route path="/admin/claims" element={<AdminClaims />} />
         <Route path="/claims" element={<MonthlyClaims />} />
         <Route path="/about" element={<About />} />
       </Routes>

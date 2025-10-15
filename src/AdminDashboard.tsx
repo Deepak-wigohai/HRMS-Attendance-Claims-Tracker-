@@ -1,5 +1,5 @@
 import SidebarLayout from './SidebarLayout'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import api from './services/api'
 import { io } from 'socket.io-client'
 
@@ -9,6 +9,17 @@ export default function AdminDashboard() {
   const [events, setEvents] = useState<Array<{ type: 'login' | 'logout'; userId: number; email?: string | null; at: string }>>([])
   const [userMap, setUserMap] = useState<Record<number, string>>({})
   const [claims, setClaims] = useState<Array<{ id: number; userId: number; email?: string | null; amount: number; note?: string | null; claimedAt: string | null }>>([])
+  const aggregatedClaimsByUser = useMemo(() => {
+    const map = new Map<number, { userId: number; email?: string | null; total: number }>()
+    for (const c of claims) {
+      const email = c.email || userMap[c.userId] || null
+      const prev = map.get(c.userId) || { userId: c.userId, email, total: 0 }
+      prev.total += Number(c.amount || 0)
+      if (!prev.email && email) prev.email = email
+      map.set(c.userId, prev)
+    }
+    return Array.from(map.values()).sort((a, b) => b.total - a.total)
+  }, [claims, userMap])
   const now = new Date()
   const dateParts = new Intl.DateTimeFormat(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).formatToParts(now)
   const monthText = dateParts.find((p) => p.type === 'month')?.value || ''
@@ -106,7 +117,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Right column: Current month claims history */}
+        {/* Right column: Current month claims (summed per user) */}
         <div className="md:col-span-1 md:col-start-2 md:row-start-2 bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-bold text-gray-900">Claims This Month</h3>
@@ -116,22 +127,21 @@ export default function AdminDashboard() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-center text-sm font-medium text-gray-500 uppercase tracking-wider">User</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-500 uppercase tracking-wider">Total Claimed</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {claims.length === 0 ? (
+                {aggregatedClaimsByUser.length === 0 ? (
                   <tr>
-                    <td className="px-4 py-4 text-sm text-gray-500 text-center" colSpan={3}>No claims this month.</td>
+                    <td className="px-4 py-4 text-sm text-gray-500 text-center" colSpan={2}>No claims this month.</td>
                   </tr>
                 ) : (
-                  claims.slice(0, 50).map((c) => (
-                    <tr key={c.id}>
+                  aggregatedClaimsByUser.slice(0, 50).map((u) => (
+                    <tr key={u.userId}>
                       <td className="px-4 py-3 text-sm text-gray-800 text-center">
                         {(() => {
-                          const email = c.email || userMap[c.userId] || `user-${c.userId}`
-                          const name = String(email).split('@')[0] || `user-${c.userId}`
+                          const email = u.email || userMap[u.userId] || `user-${u.userId}`
+                          const name = String(email).split('@')[0] || `user-${u.userId}`
                           const letter = String(email).charAt(0).toUpperCase() || 'U'
                           return (
                             <div className="flex items-center justify-center gap-2">
@@ -143,8 +153,7 @@ export default function AdminDashboard() {
                           )
                         })()}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 text-center">₹{Number(c.amount || 0).toLocaleString()}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 text-center">{c.claimedAt ? new Date(c.claimedAt).toLocaleDateString() : '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 text-center">₹{Number(u.total || 0).toLocaleString()}</td>
                     </tr>
                   ))
                 )}

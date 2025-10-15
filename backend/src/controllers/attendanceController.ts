@@ -5,11 +5,16 @@ const login = (req: Request, res: Response) => {
   try {
     // @ts-ignore: added in authMiddleware
     const userId = req.user.id;
-
     attendanceService
       .login(userId)
       .then((record: any) => res.status(201).json({ message: "Login recorded", record }))
-      .catch((err: any) => res.status(500).json({ message: "Server error", error: err.message }));
+      .catch((err: any) => {
+        const msg = String(err?.message || '').toLowerCase();
+        if (msg.includes('active session')) {
+          return res.status(400).json({ message: "Active session exists. Please punch out first." });
+        }
+        return res.status(500).json({ message: "Server error", error: err.message });
+      });
   } catch (err: any) {
     res.status(500).json({ message: "Server error", error: err.message });
   }

@@ -2,6 +2,7 @@ const express = require("express");
 const pool = require("../config/db");
 const auth = require("../middlewares/authMiddleware");
 const requireAdmin = require("../middlewares/requireAdmin");
+const claimService = require("../services/claimService");
 
 const router = express.Router();
 
@@ -157,6 +158,52 @@ router.delete("/users/:id", auth, requireAdmin, async (req: any, res: any) => {
     }
 
     res.json({ message: "User deleted" });
+  } catch (e: any) {
+    res.status(500).json({ message: "Server error", error: e.message });
+  }
+});
+
+// Admin: list all redeem requests
+router.get("/redeem-requests", auth, requireAdmin, async (_req: any, res: any) => {
+  try {
+    const rows = await claimService.adminListAllRedeemRequests();
+    res.json({ requests: rows });
+  } catch (e: any) {
+    res.status(500).json({ message: "Server error", error: e.message });
+  }
+});
+
+// Admin: approve a redeem request (sets approved=true and credits user immediately)
+router.post("/redeem-requests/:id/approve", auth, requireAdmin, async (req: any, res: any) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ message: "Invalid id" });
+    const reqRow = await claimService.getRedeemRequestById(id);
+    if (!reqRow) return res.status(404).json({ message: "Request not found" });
+    // Mark approved
+    await claimService.adminApproveRedeemRequest(id);
+    // Credit the user immediately and mark redeemed
+    const { getAvailableCredits, redeemCredits } = claimService;
+    const { available } = await getAvailableCredits(reqRow.user_id);
+    if (Number(reqRow.amount) > available) return res.status(400).json({ message: "Insufficient available credits" });
+    const result = await redeemCredits(reqRow.user_id, Number(reqRow.amount), reqRow.note);
+    await claimService.markRequestRedeemed(id);
+    try { require('../realtime').getIO()?.emit('claims:approved', { userId: reqRow.user_id, email: reqRow.email || null, requestId: id, amount: Number(reqRow.amount), at: new Date().toISOString() }); } catch {}
+    res.json({ message: "Approved and credited", result });
+  } catch (e: any) {
+    res.status(500).json({ message: "Server error", error: e.message });
+  }
+});
+
+// Admin: deny a redeem request (delete it)
+router.post("/redeem-requests/:id/deny", auth, requireAdmin, async (req: any, res: any) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ message: "Invalid id" });
+    const exists = await claimService.getRedeemRequestById(id);
+    if (!exists) return res.status(404).json({ message: "Request not found" });
+    await claimService.adminDenyRedeemRequest(id);
+    res.json({ message: "Denied" });
   } catch (e: any) {
     res.status(500).json({ message: "Server error", error: e.message });
   }

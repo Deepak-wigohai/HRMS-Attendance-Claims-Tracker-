@@ -214,4 +214,25 @@ module.exports.listRedeemRequests = listRedeemRequests;
 module.exports.getRedeemRequestById = getRedeemRequestById;
 module.exports.markRequestRedeemed = markRequestRedeemed;
 
+// Admin helpers
+async function adminListAllRedeemRequests() {
+  return redeemRequestsRepo.listAll();
+}
+
+async function adminApproveRedeemRequest(id: number) {
+  const row = await redeemRequestsRepo.setApproved(id, true);
+  return row;
+}
+
+async function adminDenyRedeemRequest(id: number) {
+  // Delete row or mark denied; here we delete the request
+  const pool = require("../config/db");
+  await pool.query(`DELETE FROM redeem_requests WHERE id = $1`, [id]);
+  return { ok: true };
+}
+
+module.exports.adminListAllRedeemRequests = adminListAllRedeemRequests;
+module.exports.adminApproveRedeemRequest = adminApproveRedeemRequest;
+module.exports.adminDenyRedeemRequest = adminDenyRedeemRequest;
+
 

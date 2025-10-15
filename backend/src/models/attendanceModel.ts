@@ -31,6 +31,17 @@ const getTodayAttendance = (userId: number) => {
     .then((result: any) => result.rows);
 };
 
+const hasOpenLoginToday = (userId: number) => {
+  return pool
+    .query(
+      `SELECT 1 FROM attendance 
+       WHERE user_id = $1 AND DATE(login_time) = CURRENT_DATE AND logout_time IS NULL 
+       LIMIT 1`,
+      [userId]
+    )
+    .then((result: any) => result.rows.length > 0);
+};
+
 const getTodayDayBounds = (userId: number) => {
   // First login today (min login_time), Last logout today (max logout_time)
   return Promise.all([
@@ -73,4 +84,4 @@ const getDayBoundsForDate = (userId: number, isoDate: string) => {
   }) as { first_login: Date | null; last_logout: Date | null });
 };
 
-module.exports = { createLogin, setLogout, getTodayAttendance, getTodayDayBounds, getDayBoundsForDate };
+module.exports = { createLogin, setLogout, getTodayAttendance, getTodayDayBounds, getDayBoundsForDate, hasOpenLoginToday };

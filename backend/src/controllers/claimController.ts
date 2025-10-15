@@ -142,7 +142,7 @@ const redeem = (req: Request, res: Response) => {
         if (reqRow.amount > available) throw new Error('Insufficient available credits');
         const data = await claimService.redeemCredits(userId, reqRow.amount, reqRow.note);
         await claimService.markRequestRedeemed(reqRow.id);
-        try { require('../realtime').getIO()?.emit('claims:redeemed', { userId, requestId: reqRow.id, amount: reqRow.amount, at: new Date().toISOString() }); } catch {}
+        try { require('../realtime').getIO()?.emit('claims:redeemed', { userId, email: user.email || null, requestId: reqRow.id, amount: reqRow.amount, at: new Date().toISOString() }); } catch {}
         return res.status(201).json(data);
       })
       .catch((err: any) => res.status(400).json({ message: err.message }));
@@ -173,7 +173,7 @@ const requestRedeem = async (req: Request, res: Response) => {
     }
 
     res.status(201).json({ message: 'Redeem request created', request: row });
-    try { require('../realtime').getIO()?.emit('claims:request', { userId: user.id, requestId: row.id, amount: row.amount, at: row.created_at }); } catch {}
+    try { require('../realtime').getIO()?.emit('claims:request', { userId: user.id, email: user.email, requestId: row.id, amount: row.amount, at: row.created_at }); } catch {}
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }

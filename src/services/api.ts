@@ -169,6 +169,19 @@ class ApiService {
     return this.request<{ year: number; month: number; claims: Array<{ id: number; userId: number; email?: string | null; amount: number; note?: string | null; claimedAt: string | null }> }>(`/admin/claims-month?year=${year}&month=${month}`)
   }
 
+  // Admin: redeem requests moderation
+  getAdminRedeemRequests() {
+    return this.request<{ requests: any[] }>(`/admin/redeem-requests`)
+  }
+
+  adminApproveRedeemRequest(id: number) {
+    return this.request(`/admin/redeem-requests/${id}/approve`, { method: 'POST' })
+  }
+
+  adminDenyRedeemRequest(id: number) {
+    return this.request(`/admin/redeem-requests/${id}/deny`, { method: 'POST' })
+  }
+
   deleteUser(userId: number) {
     return this.request(`/admin/users/${userId}`, {
       method: 'DELETE',

@@ -81,6 +81,7 @@ export default function SidebarLayout({ title, children }: { title: string; chil
             <>
               <NavItem to="/admin" label="Dashboard" Icon={DashboardIcon} onClick={() => setSidebarOpen(false)} />
               <NavItem to="/admin/users" label="Manage Users" Icon={CalendarIcon} onClick={() => setSidebarOpen(false)} />
+              <NavItem to="/admin/claims" label="User Claims" Icon={CalendarIcon} onClick={() => setSidebarOpen(false)} />
             </>
           ) : (
             <>

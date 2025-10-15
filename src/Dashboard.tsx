@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import SidebarLayout from './SidebarLayout'
 import apiService from './services/api'
+import { io } from 'socket.io-client'
 
 interface TodayClaim {
   morningEligible: boolean
@@ -27,7 +28,7 @@ interface AttendanceResponse {
 
 function Dashboard() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [availableCredits, setAvailableCredits] = useState<number>(0)
@@ -43,6 +44,13 @@ function Dashboard() {
     const m = String(now.getMonth() + 1).padStart(2, '0')
     return `${y}-${m}`
   })
+
+  // Action-scoped loaders to avoid blocking all buttons at once
+  const [punchInLoading, setPunchInLoading] = useState(false)
+  const [punchOutLoading, setPunchOutLoading] = useState(false)
+  const [redeemLoading, setRedeemLoading] = useState(false)
+  const [monthlyRequestLoading, setMonthlyRequestLoading] = useState(false)
+  const [myUserId, setMyUserId] = useState<number | null>(null)
 
   // Real API calls to fetch dashboard data
   useEffect(() => {
@@ -63,27 +71,6 @@ function Dashboard() {
           })
         }
       })
-    }
-
-    const finalizeApprovedRequests = () => {
-      // Auto-redeem any approved, unredeemed requests
-      return apiService
-        .getRedeemRequests()
-        .then((res) => {
-          const list = (res.data as any)?.requests || []
-          const pending = list.filter((r: any) => r.approved && !r.redeemed)
-          if (!pending.length) return
-          return Promise.all(
-            pending.map((r: any) =>
-              apiService.redeemWithRequest(r.id).catch(() => null)
-            )
-          ).then(() => {
-            setSuccessMessage('Redeemed approved requests')
-            setTimeout(() => setSuccessMessage(null), 3000)
-            return refreshCreditsAndMonthSummary()
-          })
-        })
-        .catch(() => void 0)
     }
 
     const fetchDashboardData = () => {
@@ -123,7 +110,6 @@ function Dashboard() {
           }
           return fetchMonthSummary()
         })
-        .then(() => finalizeApprovedRequests())
         .catch((err) => {
           console.error('Failed to load dashboard data:', err)
           setError('Failed to load dashboard data')
@@ -135,27 +121,37 @@ function Dashboard() {
     fetchDashboardData()
   }, [])
 
-  // Periodically auto-finalize any newly approved requests while the page is open
+  // Fetch current user id for filtering events
   useEffect(() => {
-    const timer = setInterval(() => {
-      apiService
-        .getRedeemRequests()
-        .then((res) => {
-          const list = (res.data as any)?.requests || []
-          const pending = list.filter((r: any) => r.approved && !r.redeemed)
-          if (!pending.length) return
-          return Promise.all(
-            pending.map((r: any) => apiService.redeemWithRequest(r.id).catch(() => null))
-          ).then(() => {
-            setSuccessMessage('Redeemed approved requests')
-            setTimeout(() => setSuccessMessage(null), 3000)
-            return refreshCreditsAndMonthSummary()
-          })
-        })
-        .catch(() => void 0)
-    }, 15000)
-    return () => clearInterval(timer)
+    apiService.getUserProfile().then((res: any) => {
+      const id = (res?.data as any)?.id
+      if (Number.isFinite(Number(id))) setMyUserId(Number(id))
+    }).catch(() => void 0)
   }, [])
+
+  // Listen for server notifications about approved/redeemed claims
+  useEffect(() => {
+    const SOCKET_URL = (import.meta as any)?.env?.VITE_SOCKET_URL || 'http://localhost:5000'
+    const socket = io(SOCKET_URL, { path: '/socket.io' })
+
+    const handler = (p: any) => {
+      if (myUserId && Number(p?.userId) !== myUserId) return
+      setSuccessMessage('Your redeem was approved and credited')
+      refreshCreditsAndMonthSummary()
+      setTimeout(() => setSuccessMessage(null), 3000)
+    }
+
+    socket.on('claims:approved', handler)
+    socket.on('claims:redeemed', handler)
+
+    return () => {
+      try {
+        socket.off('claims:approved', handler)
+        socket.off('claims:redeemed', handler)
+        socket.close()
+      } catch {}
+    }
+  }, [myUserId])
 
   const eveningFinished = new Date().getHours() >= 19
   const creditsStatus = !eveningFinished
@@ -217,7 +213,7 @@ function Dashboard() {
 
   const redeemDirect = (amount: number, note: string) => {
     // Convert direct redeem into a request to admin
-    setLoading(true)
+    setMonthlyRequestLoading(true)
     setError(null)
     return apiService
       .createRedeemRequest(amount, note)
@@ -231,11 +227,11 @@ function Dashboard() {
         setTimeout(() => setSuccessMessage(null), 3000)
       })
       .catch(() => setError('Failed to create redeem request'))
-      .finally(() => setLoading(false))
+      .finally(() => setMonthlyRequestLoading(false))
   }
 
   const handlePunchIn = () => {
-    setLoading(true)
+    setPunchInLoading(true)
     apiService
       .clockIn()
       .then((response) => {
@@ -252,11 +248,11 @@ function Dashboard() {
         }
       })
       .catch(() => setError('Failed to punch in'))
-      .finally(() => setLoading(false))
+      .finally(() => setPunchInLoading(false))
   }
 
   const handlePunchOut = () => {
-    setLoading(true)
+    setPunchOutLoading(true)
     apiService
       .clockOut()
       .then((response) => {
@@ -273,16 +269,16 @@ function Dashboard() {
         }
       })
       .catch(() => setError('Failed to punch out'))
-      .finally(() => setLoading(false))
+      .finally(() => setPunchOutLoading(false))
   }
 
   const handleRedeem = () => {
-    setLoading(true)
+    setRedeemLoading(true)
     setError(null)
     const amountNum = parseInt(redeemAmount, 10)
     if (!Number.isFinite(amountNum) || amountNum <= 0) {
       setError('Enter a valid amount')
-      setLoading(false)
+      setRedeemLoading(false)
       return
     }
     apiService
@@ -298,7 +294,7 @@ function Dashboard() {
         setRedeemNote("")
       })
       .catch(() => setError('Failed to create redeem request'))
-      .finally(() => setLoading(false))
+      .finally(() => setRedeemLoading(false))
   }
 
   // Removed global blocking loader; page renders while data loads
@@ -331,17 +327,17 @@ function Dashboard() {
             <div className="space-y-3">
               <button
                 onClick={handlePunchIn}
-                disabled={loading}
+                disabled={punchInLoading}
                 className="w-full bg-white text-black py-2 px-4 rounded-lg hover:bg-gray-300 shadow-sm disabled:opacity-50"
               >
-                {loading ? 'Processing...' : 'Punch In'}
+                {punchInLoading ? 'Processing...' : 'Punch In'}
               </button>
               <button
                 onClick={handlePunchOut}
-                disabled={loading}
+                disabled={punchOutLoading}
                 className="w-full bg-black text-white py-2 px-4 rounded-lg hover:bg-gray-300 hover:text-black shadow-sm disabled:opacity-50"
               >
-                {loading ? 'Processing...' : 'Punch Out'}
+                {punchOutLoading ? 'Processing...' : 'Punch Out'}
               </button>
             </div>
           </div>
@@ -447,10 +443,10 @@ function Dashboard() {
                   />
                   <button
                     onClick={handleRedeem}
-                    disabled={loading}
+                    disabled={redeemLoading}
                     className="w-full bg-white text-black py-2 px-4 rounded-lg hover:bg-gray-300 hover:text-black shadow-sm disabled:opacity-50"
                   >
-                    {loading ? 'Processing...' : 'Redeem'}
+                    {redeemLoading ? 'Processing...' : 'Redeem'}
                   </button>
                 </div>
               </div>
@@ -506,10 +502,10 @@ function Dashboard() {
                     if (!Number.isFinite(amt) || amt <= 0) return
                     redeemDirect(amt, `Monthly claim ${selectedMonth}`)
                   }}
-                  disabled={loading || !monthSummary || (monthSummary?.remaining ?? 0) <= 0}
+                  disabled={monthlyRequestLoading || !monthSummary || (monthSummary?.remaining ?? 0) <= 0}
                   className="w-full bg-black text-white py-2 px-4 rounded-lg hover:bg-gray-300 hover:text-black shadow-sm disabled:opacity-50"
                 >
-                  {loading ? 'Processing...' : 'Request Remaining for Month'}
+                  {monthlyRequestLoading ? 'Processing...' : 'Request Remaining for Month'}
                 </button>
               </div>
             </div>

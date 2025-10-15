@@ -26,6 +26,17 @@ const listByUser = (userId: number) => {
     .then((res: any) => res.rows);
 };
 
+const listAll = () => {
+  return pool
+    .query(
+      `SELECT rr.*, u.email
+       FROM redeem_requests rr
+       JOIN users u ON u.id = rr.user_id
+       ORDER BY rr.created_at DESC`
+    )
+    .then((res: any) => res.rows);
+};
+
 const markRedeemed = (id: number) => {
   return pool
     .query(
@@ -35,6 +46,15 @@ const markRedeemed = (id: number) => {
     .then((res: any) => res.rows[0]);
 };
 
-module.exports = { create, getById, listByUser, markRedeemed };
+const setApproved = (id: number, approved: boolean) => {
+  return pool
+    .query(
+      `UPDATE redeem_requests SET approved = $2 WHERE id = $1 RETURNING *`,
+      [id, approved]
+    )
+    .then((res: any) => res.rows[0]);
+};
+
+module.exports = { create, getById, listByUser, listAll, markRedeemed, setApproved };
 
 
