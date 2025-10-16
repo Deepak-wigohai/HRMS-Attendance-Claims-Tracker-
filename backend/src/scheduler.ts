@@ -122,8 +122,137 @@ function initSchedulers() {
   if (String(process.env.RUN_WEEKLY_SUMMARY_ON_STARTUP || "").toLowerCase() === "true") {
     sendWeeklySummary().catch((err: any) => console.error(err));
   }
+
+  // Daily at 21:00 server time
+  const DAILY_21_CRON = "0 21 * * *";
+  cron.schedule(DAILY_21_CRON, () => {
+    sendDailyAttendanceSummary().catch((err: any) => {
+      console.error("[scheduler] Failed to send daily attendance summary:", err);
+    });
+  });
+  if (String(process.env.RUN_DAILY_SUMMARY_ON_STARTUP || "").toLowerCase() === "true") {
+    sendDailyAttendanceSummary().catch((err: any) => console.error(err));
+  }
 }
 
 module.exports = { initSchedulers, sendWeeklySummary };
+
+// ===== Daily Attendance Summary (21:00) =====
+
+function toLocalIsoDate(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function isAtOrBefore(time: Date | null, hh: number, mm: number) {
+  if (!time) return false;
+  const h = time.getHours();
+  const m = time.getMinutes();
+  return h < hh || (h === hh && m <= mm);
+}
+
+function isAtOrAfter(time: Date | null, hh: number, mm: number) {
+  if (!time) return false;
+  const h = time.getHours();
+  const m = time.getMinutes();
+  return h > hh || (h === hh && m >= mm);
+}
+
+async function fetchTodayAttendanceSummary() {
+  const query = `
+    SELECT u.id, u.email,
+      (
+        SELECT MIN(a.login_time) FROM attendance a
+        WHERE a.user_id = u.id AND DATE(a.login_time) = CURRENT_DATE
+      ) AS first_login,
+      (
+        SELECT MAX(a.logout_time) FROM attendance a
+        WHERE a.user_id = u.id AND a.logout_time IS NOT NULL AND DATE(a.logout_time) = CURRENT_DATE
+      ) AS last_logout
+    FROM users u
+    WHERE u.deleted_at IS NULL
+    ORDER BY u.email ASC;
+  `;
+  const res = await pool.query(query);
+  const rows = res.rows.map((r: any) => {
+    const firstLogin = r.first_login ? new Date(r.first_login) : null;
+    const lastLogout = r.last_logout ? new Date(r.last_logout) : null;
+    const morningEligible = isAtOrBefore(firstLogin, 8, 0);
+    const eveningEligible = isAtOrAfter(lastLogout, 19, 0) && !isAtOrAfter(firstLogin, 19, 0);
+    return {
+      userId: Number(r.id),
+      email: r.email || null,
+      firstLogin,
+      lastLogout,
+      morningEligible,
+      eveningEligible,
+    };
+  }).filter((r: any) => r.firstLogin || r.lastLogout); // include only users with any activity today
+  return rows;
+}
+
+function buildDailyAttendanceEmailHtml(rows: Array<{ email: string | null; firstLogin: Date | null; lastLogout: Date | null; morningEligible: boolean; eveningEligible: boolean }>) {
+  const date = new Date();
+  const title = `Daily Attendance Summary — ${toLocalIsoDate(date)}`;
+  const header = `<h2>${title}</h2>`;
+  if (!rows.length) return header + `<p>No attendance activity today.</p>`;
+  const fmt = (d: Date | null) => (d ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—');
+  const tableRows = rows.map((r) => `
+    <tr>
+      <td style="padding:8px 12px;border:1px solid #eee;">${r.email || '—'}</td>
+      <td style="padding:8px 12px;border:1px solid #eee;text-align:center;">${fmt(r.firstLogin)}</td>
+      <td style="padding:8px 12px;border:1px solid #eee;text-align:center;">${fmt(r.lastLogout)}</td>
+      <td style="padding:8px 12px;border:1px solid #eee;text-align:center;">${r.morningEligible ? 'Yes' : 'No'}</td>
+      <td style="padding:8px 12px;border:1px solid #eee;text-align:center;">${r.eveningEligible ? 'Yes' : 'No'}</td>
+    </tr>
+  `).join("");
+  return (
+    header +
+    `<table cellspacing="0" cellpadding="0" style="border-collapse:collapse;border:1px solid #eee;">
+      <thead>
+        <tr style="background:#f7f7f7;">
+          <th style="padding:8px 12px;border:1px solid #eee;text-align:left;">User</th>
+          <th style="padding:8px 12px;border:1px solid #eee;text-align:center;">First Login</th>
+          <th style="padding:8px 12px;border:1px solid #eee;text-align:center;">Last Logout</th>
+          <th style="padding:8px 12px;border:1px solid #eee;text-align:center;">Morning Eligible</th>
+          <th style="padding:8px 12px;border:1px solid #eee;text-align:center;">Evening Eligible</th>
+        </tr>
+      </thead>
+      <tbody>${tableRows}</tbody>
+    </table>`
+  );
+}
+
+async function sendDailyAttendanceSummary() {
+  const adminEmails = String(process.env.ADMIN_EMAILS || "")
+    .split(",")
+    .map((s: string) => s.trim())
+    .filter(Boolean);
+  if (!adminEmails.length) {
+    console.warn("[scheduler] No ADMIN_EMAILS configured; skipping daily attendance summary.");
+    return;
+  }
+  const rows = await fetchTodayAttendanceSummary();
+  const html = buildDailyAttendanceEmailHtml(rows);
+  const fmt = (d: Date | null) => (d ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—');
+  const textLines = rows.map((r: any) => `${r.email || '—'} | in: ${fmt(r.firstLogin)} | out: ${fmt(r.lastLogout)} | morning: ${r.morningEligible ? 'Yes' : 'No'} | evening: ${r.eveningEligible ? 'Yes' : 'No'}`);
+  const text = `Daily Attendance Summary — ${toLocalIsoDate(new Date())}\n\n` + (textLines.join("\n") || 'No attendance activity today.');
+
+  await Promise.all(
+    adminEmails.map((to: string) =>
+      sendMail({
+        to,
+        subject: `Daily Attendance Summary`,
+        text,
+        html,
+      })
+    )
+  );
+  console.log(`[scheduler] Daily attendance summary sent to ${adminEmails.length} admin(s).`);
+}
+
+module.exports.sendDailyAttendanceSummary = sendDailyAttendanceSummary;
 
 

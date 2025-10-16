@@ -18,6 +18,8 @@ type ClaimResult = {
 };
 
 const formatDate = (d: Date | null) => (d ? new Date(d).toISOString() : null);
+const toLocalIsoDate = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
 const isAtOrBefore = (time: Date | null, hh: number, mm: number) => {
   if (!time) return false;
@@ -32,7 +34,7 @@ const isAtOrAfter = (time: Date | null, hh: number, mm: number) => {
 };
 
 const computeTodayClaim = async (userId: number): Promise<ClaimResult> => {
-  const businessIsoDate = new Date().toISOString().slice(0, 10);
+  const businessIsoDate = toLocalIsoDate(new Date());
   const [{ first_login, last_logout }, userIncentives, recorded] = await Promise.all([
     attendanceRepo.getTodayDayBounds(userId),
     userRepo.getUserIncentivesById(userId),

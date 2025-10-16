@@ -134,7 +134,6 @@ export default function AdminClaims() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Note</th>
@@ -146,16 +145,15 @@ export default function AdminClaims() {
           <tbody className="bg-white divide-y divide-gray-200">
             {loading ? (
               <tr>
-                <td className="px-4 py-6 text-center text-gray-500" colSpan={7}>Loading…</td>
+                <td className="px-4 py-6 text-center text-gray-500" colSpan={6}>Loading…</td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td className="px-4 py-6 text-center text-gray-500" colSpan={7}>No requests</td>
+                <td className="px-4 py-6 text-center text-gray-500" colSpan={6}>No requests</td>
               </tr>
             ) : (
               filtered.map((r) => (
                 <tr key={r.id}>
-                  <td className="px-4 py-3 text-sm text-gray-700">{r.id}</td>
                   <td className="px-4 py-3 text-sm text-gray-700">{r.email || `user-${r.user_id}`}</td>
                   <td className="px-4 py-3 text-sm text-gray-900">₹{Number(r.amount || 0).toLocaleString()}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{r.note || '-'}</td>
@@ -178,13 +176,15 @@ export default function AdminClaims() {
                       >
                         {actionId === r.id ? 'Processing…' : r.approved ? 'Approved' : 'Approve'}
                       </button>
-                      <button
-                        disabled={r.redeemed || actionId === r.id}
-                        onClick={() => deny(r.id)}
-                        className="px-3 py-1.5 rounded-md border border-red-300 text-red-700 bg-white hover:bg-red-50 disabled:opacity-50"
-                      >
-                        Deny
-                      </button>
+                      {!r.approved && (
+                        <button
+                          disabled={r.redeemed || actionId === r.id}
+                          onClick={() => deny(r.id)}
+                          className="px-3 py-1.5 rounded-md border border-red-300 text-red-700 bg-white hover:bg-red-50 disabled:opacity-50"
+                        >
+                          Deny
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

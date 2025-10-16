@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import apiService from './services/api'
 
 type IconProps = { className?: string }
 
@@ -135,7 +136,13 @@ export default function SidebarLayout({ title, children }: { title: string; chil
                     </Link>
                     <Link
                       to="/"
-                      onClick={() => setProfileOpen(false)}
+                      onClick={() => {
+                        try {
+                          apiService.clearToken()
+                          localStorage.removeItem('role')
+                        } catch {}
+                        setProfileOpen(false)
+                      }}
                       className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
                     >
                       Logout

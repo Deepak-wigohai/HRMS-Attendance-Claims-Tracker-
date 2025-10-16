@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom'
+import type React from 'react'
 import Login from './Login'
 import AdminDashboard from './AdminDashboard'
 import AdminUsers from './AdminUsers'
@@ -46,17 +47,27 @@ function Welcome() {
 }
 
 function App() {
+  const isAuthed = () => !!localStorage.getItem('token')
+  const getRole = () => (localStorage.getItem('role') as 'admin' | 'user' | null) || 'user'
+
+  function RequireAuth({ children }: { children: React.ReactElement }) {
+    return isAuthed() ? children : <Navigate to="/login" replace />
+  }
+
+  function RequireAdmin({ children }: { children: React.ReactElement }) {
+    return isAuthed() && getRole() === 'admin' ? children : <Navigate to="/login" replace />
+  }
   return (
     <Router>
       <Routes>
         <Route path="/" element={<Welcome />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/admin/users" element={<AdminUsers />} />
-        <Route path="/admin/claims" element={<AdminClaims />} />
-        <Route path="/claims" element={<MonthlyClaims />} />
+        <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+        <Route path="/admin" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
+        <Route path="/admin/users" element={<RequireAdmin><AdminUsers /></RequireAdmin>} />
+        <Route path="/admin/claims" element={<RequireAdmin><AdminClaims /></RequireAdmin>} />
+        <Route path="/claims" element={<RequireAuth><MonthlyClaims /></RequireAuth>} />
         <Route path="/about" element={<About />} />
       </Routes>
     </Router>

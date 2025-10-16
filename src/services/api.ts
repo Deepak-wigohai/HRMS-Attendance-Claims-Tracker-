@@ -44,16 +44,15 @@ class ApiService {
     }
 
     return fetch(url, config)
-      .then((response) =>
-        response
-          .json()
-          .then((data) => {
-            if (!response.ok) {
-              throw new Error(data.message || 'Request failed')
-            }
-            return { data } as ApiResponse<T>
-          })
-      )
+      .then(async (response) => {
+        if (response.status === 204) return { data: undefined as unknown as T }
+        let data: any = undefined
+        try { data = await response.json() } catch {}
+        if (!response.ok) {
+          throw new Error((data && data.message) || 'Request failed')
+        }
+        return { data } as ApiResponse<T>
+      })
       .catch((error) => ({ error: error instanceof Error ? error.message : 'Unknown error' }))
   }
 
@@ -126,12 +125,7 @@ class ApiService {
     return this.request('/claims/available')
   }
 
-  redeemCredits(amount: number, note?: string) {
-    return this.request('/claims/redeem', {
-      method: 'POST',
-      body: JSON.stringify({ amount, note }),
-    })
-  }
+  // Removed misleading direct redeem with amount; use redeemWithRequest instead
 
   // Redeem approval flow
   createRedeemRequest(amount: number, note?: string, adminEmail?: string) {

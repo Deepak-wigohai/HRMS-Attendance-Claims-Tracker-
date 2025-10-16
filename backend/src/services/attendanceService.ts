@@ -2,7 +2,8 @@ const attendanceRepo = require("../models/attendanceModel");
 const userRepo = require("../models/userModel");
 const creditEvents = require("../models/creditEventsModel");
 
-const toBusinessIsoDate = (d: Date) => d.toISOString().slice(0, 10);
+const toBusinessIsoDate = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const isAtOrBefore = (time: Date, hh: number, mm: number) => {
   const h = time.getHours();
   const m = time.getMinutes();

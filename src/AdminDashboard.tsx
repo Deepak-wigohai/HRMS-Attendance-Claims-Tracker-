@@ -4,6 +4,7 @@ import api from './services/api'
 import { io } from 'socket.io-client'
 
 export default function AdminDashboard() {
+  const isLate = (d: Date) => d.getHours() > 8 || (d.getHours() === 8 && d.getMinutes() > 0)
   const [overview, setOverview] = useState<{ totalUsers: number; totalAdmins: number; presentToday: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [events, setEvents] = useState<Array<{ type: 'login' | 'logout'; userId: number; email?: string | null; at: string }>>([])
@@ -102,16 +103,16 @@ export default function AdminDashboard() {
         </div>
 
         {/* Right-side cards grid with tall Present Today on the left */}
-        <div className="grid grid-cols-2 grid-rows-2 gap-4 h-full">
-          <div className="row-span-2 bg-white rounded-lg shadow p-6 text-center flex flex-col justify-center">
+        <div className="grid grid-cols-2 grid-rows-2 gap-4 h-full w-max ml-auto">
+          <div className="row-span-2 bg-white rounded-lg shadow p-8 text-center flex flex-col justify-center w-60 md:w-65">
             <div className="text-sm tracking-wide text-gray-600">Present Today</div>
             <div className="text-6xl font-extrabold mt-1">{overview?.presentToday ?? '-'}</div>
           </div>
-          <div className="bg-white rounded-lg shadow-sm p-4 text-center flex flex-col justify-center w-44 md:w-56">
+          <div className="bg-white rounded-lg shadow-sm p-5 text-center flex flex-col justify-center w-40 md:w-48">
             <div className="text-sm tracking-wide text-gray-600">Admins</div>
             <div className="text-4xl font-extrabold mt-1">{overview?.totalAdmins ?? '-'}</div>
           </div>
-          <div className="bg-white rounded-lg shadow-sm p-4 text-center flex flex-col justify-center w-44 md:w-56">
+          <div className="bg-white rounded-lg shadow-sm p-5 text-center flex flex-col justify-center w-40 md:w-48">
             <div className="text-sm tracking-wide text-gray-600">Users</div>
             <div className="text-4xl font-extrabold mt-1">{overview?.totalUsers ?? '-'}</div>
           </div>
@@ -181,40 +182,89 @@ export default function AdminDashboard() {
                     <td className="px-6 py-4 text-base text-gray-500 text-center" colSpan={3}>No activity in the last 24 hours.</td>
                   </tr>
                 ) : (
-                  events.filter((e) => e.type === 'login').slice(0, 200).map((e, idx) => (
-                    <tr key={idx}>
-                      <td className="px-6 py-3 text-base text-gray-700 text-center">
-                        {(() => {
-                          const email = e.email || userMap[e.userId] || `user-${e.userId}`
-                          const name = String(email).split('@')[0] || `user-${e.userId}`
-                          const letter = String(email).charAt(0).toUpperCase() || 'U'
-                          return (
-                            <div className="flex items-center justify-center gap-2">
-                              <div className="w-7 h-7 rounded-full bg-gray-600 text-white flex items-center justify-center font-semibold">
-                                {letter}
-                              </div>
-                              <span>{name}</span>
-                            </div>
-                          )
-                        })()}
-                      </td>
-                      <td className="px-6 py-3 text-base text-gray-900 text-center">{new Date(e.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                      <td className="px-6 py-3 text-base font-medium text-center">
-                        {(() => {
-                          // Late badge: only meaningful for login events
-                          const d = new Date(e.at)
-                          const late = e.type === 'login' && (d.getHours() > 8 || (d.getHours() === 8 && d.getMinutes() > 0));
-                          const label = e.type === 'login' ? (late ? 'Late' : 'On time') : '—'
-                          const cls = e.type !== 'login' ? 'bg-gray-100 text-gray-700' : (late ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800')
-                          return (
-                            <span className={`inline-flex items-center px-3 py-0.5 rounded-full text-sm font-semibold ${cls}`}>
-                              {label}
-                            </span>
-                          )
-                        })()}
-                      </td>
-                    </tr>
-                  ))
+                  (() => {
+                    const logs = events.filter((e) => e.type === 'login').slice(0, 200)
+                    const todayKey = new Date().toDateString()
+                    const todays = logs.filter((e) => new Date(e.at).toDateString() === todayKey)
+                    const yesterdays = logs.filter((e) => new Date(e.at).toDateString() !== todayKey)
+                    return (
+                      <>
+                        {todays.map((e, idx) => (
+                          <tr key={`t-${idx}`}>
+                            <td className="px-6 py-3 text-base text-gray-700 text-center">
+                              {(() => {
+                                const email = e.email || userMap[e.userId] || `user-${e.userId}`
+                                const name = String(email).split('@')[0] || `user-${e.userId}`
+                                const letter = String(email).charAt(0).toUpperCase() || 'U'
+                                return (
+                                  <div className="flex items-center justify-center gap-2">
+                                    <div className="w-7 h-7 rounded-full bg-gray-600 text-white flex items-center justify-center font-semibold">
+                                      {letter}
+                                    </div>
+                                    <span>{name}</span>
+                                  </div>
+                                )
+                              })()}
+                            </td>
+                            <td className="px-6 py-3 text-base text-gray-900 text-center">{new Date(e.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                            <td className="px-6 py-3 text-base font-medium text-center">
+                              {(() => {
+                                // Late badge: only meaningful for login events
+                                const d = new Date(e.at)
+                                const late = e.type === 'login' && isLate(d)
+                                const label = e.type === 'login' ? (late ? 'Late' : 'On time') : '—'
+                                const cls = e.type !== 'login' ? 'bg-gray-100 text-gray-700' : (late ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800')
+                                return (
+                                  <span className={`inline-flex items-center px-3 py-0.5 rounded-full text-sm font-semibold ${cls}`}>
+                                    {label}
+                                  </span>
+                                )
+                              })()}
+                            </td>
+                          </tr>
+                        ))}
+                        {yesterdays.length > 0 && (
+                          <tr>
+                            <td className="px-6 py-2 bg-gray-50 text-gray-600 text-center font-semibold" colSpan={3}>Yesterday</td>
+                          </tr>
+                        )}
+                        {yesterdays.map((e, idx) => (
+                          <tr key={`y-${idx}`} className="opacity-60">
+                            <td className="px-6 py-3 text-base text-gray-700 text-center">
+                              {(() => {
+                                const email = e.email || userMap[e.userId] || `user-${e.userId}`
+                                const name = String(email).split('@')[0] || `user-${e.userId}`
+                                const letter = String(email).charAt(0).toUpperCase() || 'U'
+                                return (
+                                  <div className="flex items-center justify-center gap-2">
+                                    <div className="w-7 h-7 rounded-full bg-gray-600 text-white flex items-center justify-center font-semibold">
+                                      {letter}
+                                    </div>
+                                    <span>{name}</span>
+                                  </div>
+                                )
+                              })()}
+                            </td>
+                            <td className="px-6 py-3 text-base text-gray-900 text-center">{new Date(e.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                            <td className="px-6 py-3 text-base font-medium text-center">
+                              {(() => {
+                                // Late badge: only meaningful for login events
+                                const d = new Date(e.at)
+                                const late = e.type === 'login' && isLate(d)
+                                const label = e.type === 'login' ? (late ? 'Late' : 'On time') : '—'
+                                const cls = e.type !== 'login' ? 'bg-gray-100 text-gray-700' : (late ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800')
+                                return (
+                                  <span className={`inline-flex items-center px-3 py-0.5 rounded-full text-sm font-semibold ${cls}`}>
+                                    {label}
+                                  </span>
+                                )
+                              })()}
+                            </td>
+                          </tr>
+                        ))}
+                      </>
+                    )
+                  })()
                 )}
               </tbody>
             </table>

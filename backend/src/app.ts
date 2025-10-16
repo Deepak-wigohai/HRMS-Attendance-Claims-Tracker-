@@ -8,9 +8,19 @@ import type { Request, Response } from "express";
 
 dotenv.config();
 
+const allowedOrigins = String(process.env.FRONTEND_ORIGINS || process.env.FRONTEND_ORIGIN || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: allowedOrigins.length ? allowedOrigins : ['http://localhost:5173'],
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization'],
+  credentials: false,
+}));
 app.use(helmet());
 app.use(express.json());
 

@@ -17,12 +17,7 @@ type MonthResponse = {
   claims: ClaimItem[]
 }
 
-type EarnedDay = {
-  date: string
-  morningCredit: number
-  eveningCredit: number
-  totalCredit: number
-}
+// Removed unused EarnedDay type and state
 
 function MonthlyClaims() {
   const today = new Date()
@@ -31,7 +26,6 @@ function MonthlyClaims() {
   const [data, setData] = useState<MonthResponse | null>(null)
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
-  const [earnedDays, setEarnedDays] = useState<EarnedDay[]>([])
   const [viewMode, setViewMode] = useState<'daily' | 'monthly'>('monthly')
   const [yearClaims, setYearClaims] = useState<ClaimItem[]>([])
 
@@ -61,28 +55,18 @@ function MonthlyClaims() {
         })
         .finally(() => setLoading(false))
     } else {
-      Promise.all([
-        apiService.getMonthClaim(year, month),
-        apiService.getMonthEarned(year, month),
-      ])
-        .then(([claimsRes, earnedRes]) => {
+      apiService.getMonthClaim(year, month)
+        .then((claimsRes) => {
           if (claimsRes.error) {
             setError(claimsRes.error)
             setData(null)
           } else {
             setData(claimsRes.data as unknown as MonthResponse)
           }
-          if (!earnedRes.error && earnedRes.data) {
-            const days = (earnedRes.data as any).days as EarnedDay[]
-            setEarnedDays(days || [])
-          } else {
-            setEarnedDays([])
-          }
         })
         .catch(() => {
           setError('Failed to load monthly claims')
           setData(null)
-          setEarnedDays([])
         })
         .finally(() => setLoading(false))
     }

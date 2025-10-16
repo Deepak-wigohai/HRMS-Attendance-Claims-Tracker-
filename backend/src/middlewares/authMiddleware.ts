@@ -3,7 +3,7 @@ const pool = require("../config/db");
 import type { Request, Response, NextFunction } from "express";
 
 const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
-  const token = req.headers["authorization"]?.split(" ")[1]; // Expect "Bearer <token>"
+  const token = req.headers["authorization"]?.split(" ")[1];
 
   if (!token) {
     return res.status(401).json({ message: "Access denied, no token provided" });
@@ -12,7 +12,7 @@ const authMiddleware = async (req: Request, res: Response, next: NextFunction) =
   try {
     const verified = jwt.verify(token, process.env.JWT_SECRET);
     // @ts-ignore
-    req.user = verified; // attach user to request
+    req.user = verified;
     try {
       const id = Number((verified as any).id);
       if (Number.isFinite(id)) {
