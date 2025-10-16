@@ -173,7 +173,7 @@ const requestRedeem = async (req: Request, res: Response) => {
     }
 
     res.status(201).json({ message: 'Redeem request created', request: row });
-    try { require('../realtime').getIO()?.emit('claims:request', { userId: user.id, email: user.email, requestId: row.id, amount: row.amount, at: row.created_at }); } catch {}
+    try { require('../realtime').getIO()?.emit('claims:request', { userId: user.id, email: user.email, requestId: row.id, amount: row.amount, note: row.note || null, at: row.created_at }); } catch {}
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }

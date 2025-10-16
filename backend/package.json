@@ -18,14 +18,17 @@
     "express": "^5.1.0",
     "express-rate-limit": "^8.1.0",
     "helmet": "^8.1.0",
+    "js-logger": "^1.6.1",
     "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.1",
     "node-cron": "^4.2.1",
     "nodemailer": "^7.0.9",
     "pg": "^8.16.3",
     "rate-limit-redis": "^4.2.2",
     "redis": "^5.8.3",
     "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1"
+    "socket.io-client": "^4.8.1",
+    "winston": "^3.18.3"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",

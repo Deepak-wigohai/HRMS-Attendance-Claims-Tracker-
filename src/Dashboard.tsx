@@ -48,8 +48,6 @@ function Dashboard() {
   // Action-scoped loaders to avoid blocking all buttons at once
   const [punchInLoading, setPunchInLoading] = useState(false)
   const [punchOutLoading, setPunchOutLoading] = useState(false)
-  const [redeemLoading, setRedeemLoading] = useState(false)
-  const [monthlyRequestLoading, setMonthlyRequestLoading] = useState(false)
   const [myUserId, setMyUserId] = useState<number | null>(null)
 
   // Real API calls to fetch dashboard data
@@ -211,10 +209,38 @@ function Dashboard() {
     })
   }
 
+  const refreshTodayClaimFromServer = () => {
+    return apiService.getTodayClaim().then((claimResponse) => {
+      if (claimResponse && claimResponse.data) {
+        const d = claimResponse.data as unknown as any
+        setTodayClaim({
+          morningEligible: !!d.morningEligible,
+          eveningEligible: !!d.eveningEligible,
+          morningCredit: Number(d.morningCredit || 0),
+          eveningCredit: Number(d.eveningCredit || 0),
+          totalCredit: Number(d.totalCredit || 0),
+          firstLogin: d.firstLogin || null,
+          lastLogout: d.lastLogout || null,
+        })
+      }
+    })
+  }
+
+  const refreshAfterAttendanceChange = () => {
+    return refreshPresentStatusCard()
+      .then(() => Promise.all([
+        refreshCreditsAndMonthSummary(),
+        refreshTodayClaimFromServer(),
+      ]))
+      .then(() => void 0)
+  }
+
   const redeemDirect = (amount: number, note: string) => {
     // Convert direct redeem into a request to admin
-    setMonthlyRequestLoading(true)
+    // keep UI interactive; no loading state
     setError(null)
+    setSuccessMessage('Redeem request sent to admin')
+    setTimeout(() => setSuccessMessage(null), 3000)
     return apiService
       .createRedeemRequest(amount, note)
       .then((resp) => {
@@ -223,11 +249,13 @@ function Dashboard() {
           setSuccessMessage(null)
           return
         }
-        setSuccessMessage('Redeem request sent to admin')
-        setTimeout(() => setSuccessMessage(null), 3000)
+        // keep the success toast already shown
       })
-      .catch(() => setError('Failed to create redeem request'))
-      .finally(() => setMonthlyRequestLoading(false))
+      .catch(() => {
+        setError('Failed to create redeem request')
+        setSuccessMessage(null)
+      })
+      .finally(() => void 0)
   }
 
   const handlePunchIn = () => {
@@ -243,7 +271,7 @@ function Dashboard() {
           setSuccessMessage('Punch in successful!')
           setIsLoggedIn(true)
           console.log('Punch in successful:', response.data)
-          refreshPresentStatusCard()
+          refreshAfterAttendanceChange()
           setTimeout(() => setSuccessMessage(null), 3000)
         }
       })
@@ -264,7 +292,7 @@ function Dashboard() {
           setSuccessMessage('Punch out successful!')
           setIsLoggedIn(false)
           console.log('Punch out successful:', response.data)
-          refreshPresentStatusCard()
+          refreshAfterAttendanceChange()
           setTimeout(() => setSuccessMessage(null), 3000)
         }
       })
@@ -273,14 +301,16 @@ function Dashboard() {
   }
 
   const handleRedeem = () => {
-    setRedeemLoading(true)
+    // keep UI interactive; no loading state
     setError(null)
     const amountNum = parseInt(redeemAmount, 10)
     if (!Number.isFinite(amountNum) || amountNum <= 0) {
       setError('Enter a valid amount')
-      setRedeemLoading(false)
       return
     }
+    // Show success first, then process
+    setSuccessMessage('Redeem request sent to admin')
+    setTimeout(() => setSuccessMessage(null), 3000)
     apiService
       .createRedeemRequest(amountNum, redeemNote)
       .then((resp) => {
@@ -289,12 +319,14 @@ function Dashboard() {
           setSuccessMessage(null)
           return
         }
-        setSuccessMessage('Redeem request sent to admin')
         setRedeemAmount("")
         setRedeemNote("")
       })
-      .catch(() => setError('Failed to create redeem request'))
-      .finally(() => setRedeemLoading(false))
+      .catch(() => {
+        setError('Failed to create redeem request')
+        setSuccessMessage(null)
+      })
+      .finally(() => void 0)
   }
 
   // Removed global blocking loader; page renders while data loads
@@ -442,11 +474,10 @@ function Dashboard() {
                     className="w-full rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   <button
-                    onClick={handleRedeem}
-                    disabled={redeemLoading}
-                    className="w-full bg-white text-black py-2 px-4 rounded-lg hover:bg-gray-300 hover:text-black shadow-sm disabled:opacity-50"
+              onClick={handleRedeem}
+              className="w-full bg-white text-black py-2 px-4 rounded-lg hover:bg-gray-300 hover:text-black shadow-sm"
                   >
-                    {redeemLoading ? 'Processing...' : 'Redeem'}
+              Redeem
                   </button>
                 </div>
               </div>
@@ -502,10 +533,10 @@ function Dashboard() {
                     if (!Number.isFinite(amt) || amt <= 0) return
                     redeemDirect(amt, `Monthly claim ${selectedMonth}`)
                   }}
-                  disabled={monthlyRequestLoading || !monthSummary || (monthSummary?.remaining ?? 0) <= 0}
+                  disabled={!monthSummary || (monthSummary?.remaining ?? 0) <= 0}
                   className="w-full bg-black text-white py-2 px-4 rounded-lg hover:bg-gray-300 hover:text-black shadow-sm disabled:opacity-50"
                 >
-                  {monthlyRequestLoading ? 'Processing...' : 'Request Remaining for Month'}
+                  Request Remaining for Month
                 </button>
               </div>
             </div>

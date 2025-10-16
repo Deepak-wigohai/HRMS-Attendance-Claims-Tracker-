@@ -179,8 +179,9 @@ async function fetchTodayAttendanceSummary() {
   const rows = res.rows.map((r: any) => {
     const firstLogin = r.first_login ? new Date(r.first_login) : null;
     const lastLogout = r.last_logout ? new Date(r.last_logout) : null;
-    const morningEligible = isAtOrBefore(firstLogin, 8, 0);
-    const eveningEligible = isAtOrAfter(lastLogout, 19, 0) && !isAtOrAfter(firstLogin, 19, 0);
+    const { MORNING_CUTOFF_HOUR, MORNING_CUTOFF_MINUTE, EVENING_CUTOFF_HOUR, EVENING_CUTOFF_MINUTE } = require("./config/timings");
+    const morningEligible = isAtOrBefore(firstLogin, MORNING_CUTOFF_HOUR, MORNING_CUTOFF_MINUTE);
+    const eveningEligible = isAtOrAfter(lastLogout, EVENING_CUTOFF_HOUR, EVENING_CUTOFF_MINUTE) && !isAtOrAfter(firstLogin, EVENING_CUTOFF_HOUR, EVENING_CUTOFF_MINUTE);
     return {
       userId: Number(r.id),
       email: r.email || null,

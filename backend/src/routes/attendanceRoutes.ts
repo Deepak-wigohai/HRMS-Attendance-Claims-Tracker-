@@ -16,14 +16,17 @@ if (redisClient) {
 }
 
 
-// Helper to bucket requests into daily windows starting at 19:00 local time
+// Helper to bucket requests into daily windows starting at EVENING_CUTOFF local time
 function bucketLabelFor19hWindow(now: Date) {
-  const anchor = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 19, 0, 0, 0);
+  const { EVENING_CUTOFF_HOUR, EVENING_CUTOFF_MINUTE } = require("../config/timings");
+  const anchor = new Date(now.getFullYear(), now.getMonth(), now.getDate(), EVENING_CUTOFF_HOUR, EVENING_CUTOFF_MINUTE, 0, 0);
   const bucketStart = (now >= anchor) ? anchor : new Date(anchor.getTime() - 24 * 60 * 60 * 1000);
   const y = bucketStart.getFullYear();
   const m = String(bucketStart.getMonth() + 1).padStart(2, '0');
   const d = String(bucketStart.getDate()).padStart(2, '0');
-  return `${y}${m}${d}-1900`;
+  const hh = String(EVENING_CUTOFF_HOUR).padStart(2, '0');
+  const mm = String(EVENING_CUTOFF_MINUTE).padStart(2, '0');
+  return `${y}${m}${d}-${hh}${mm}`;
 }
 
 const punchInRateLimit = rateLimit({

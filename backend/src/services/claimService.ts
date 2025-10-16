@@ -33,6 +33,8 @@ const isAtOrAfter = (time: Date | null, hh: number, mm: number) => {
   return t.getHours() > hh || (t.getHours() === hh && t.getMinutes() >= mm);
 };
 
+const { MORNING_CUTOFF_HOUR, MORNING_CUTOFF_MINUTE, EVENING_CUTOFF_HOUR, EVENING_CUTOFF_MINUTE } = require("../config/timings");
+
 const computeTodayClaim = async (userId: number): Promise<ClaimResult> => {
   const businessIsoDate = toLocalIsoDate(new Date());
   const [{ first_login, last_logout }, userIncentives, recorded] = await Promise.all([
@@ -44,8 +46,8 @@ const computeTodayClaim = async (userId: number): Promise<ClaimResult> => {
   const morningRate = Math.max(0, userIncentives?.morning_incentive ?? 100);
   const eveningRate = Math.max(0, userIncentives?.evening_incentive ?? 100);
 
-  const morningEligible = isAtOrBefore(first_login, 8, 0) && morningRate > 0;
-  const eveningEligible = isAtOrAfter(last_logout, 19, 0) && eveningRate > 0;
+  const morningEligible = isAtOrBefore(first_login, MORNING_CUTOFF_HOUR, MORNING_CUTOFF_MINUTE) && morningRate > 0;
+  const eveningEligible = isAtOrAfter(last_logout, EVENING_CUTOFF_HOUR, EVENING_CUTOFF_MINUTE) && eveningRate > 0;
 
   // Show only amounts actually recorded for today
   const morningCredit = morningRate > 0 ? Number(recorded?.morning_credit || 0) : 0;
@@ -79,8 +81,8 @@ const computeDayClaim = async (
   eveningRate: number
 ) => {
   const { first_login, last_logout } = await attendanceRepo.getDayBoundsForDate(userId, isoDate);
-  const morningEligible = isAtOrBefore(first_login, 8, 0);
-  const eveningEligible = isAtOrAfter(last_logout, 19, 0);
+  const morningEligible = isAtOrBefore(first_login, MORNING_CUTOFF_HOUR, MORNING_CUTOFF_MINUTE);
+  const eveningEligible = isAtOrAfter(last_logout, EVENING_CUTOFF_HOUR, EVENING_CUTOFF_MINUTE);
   const morningCredit = morningEligible ? morningRate : 0;
   const eveningCredit = eveningEligible ? eveningRate : 0;
   return {

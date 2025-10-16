@@ -15,9 +15,11 @@ const isAtOrAfter = (time: Date, hh: number, mm: number) => {
   return h > hh || (h === hh && m >= mm);
 };
 
+const { MORNING_CUTOFF_HOUR, MORNING_CUTOFF_MINUTE, EVENING_CUTOFF_HOUR, EVENING_CUTOFF_MINUTE } = require("../config/timings");
+
 const login = async (userId: number) => {
   const now = new Date();
-  const shouldCreditMorning = isAtOrBefore(now, 8, 0);
+  const shouldCreditMorning = isAtOrBefore(now, MORNING_CUTOFF_HOUR, MORNING_CUTOFF_MINUTE);
   const hasOpen = await attendanceRepo.hasOpenLoginToday(userId);
   if (hasOpen) {
     throw new Error("Active session exists. Please punch out first.");
@@ -41,13 +43,13 @@ const login = async (userId: number) => {
 
 const logout = (userId: number) => {
   const now = new Date();
-  const shouldCreditEveningByTime = isAtOrAfter(now, 19, 0);
+  const shouldCreditEveningByTime = isAtOrAfter(now, EVENING_CUTOFF_HOUR, EVENING_CUTOFF_MINUTE);
   return attendanceRepo.setLogout(userId).then((res: any) => {
     try { require('../realtime').getIO()?.emit('attendance:logout', { userId, at: new Date().toISOString() }); } catch {}
     if (!shouldCreditEveningByTime) return res;
     // If the user's first login today was after evening cutoff, do not award any evening credit
     return attendanceRepo.getTodayDayBounds(userId).then(({ first_login }: { first_login: Date | null }) => {
-      const firstLoginAfterEvening = first_login ? isAtOrAfter(new Date(first_login), 19, 0) : false;
+      const firstLoginAfterEvening = first_login ? isAtOrAfter(new Date(first_login), EVENING_CUTOFF_HOUR, EVENING_CUTOFF_MINUTE) : false;
       if (firstLoginAfterEvening) return res;
       return userRepo
         .getUserIncentivesById(userId)

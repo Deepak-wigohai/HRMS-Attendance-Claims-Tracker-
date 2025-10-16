@@ -4,7 +4,7 @@ import api from './services/api'
 import { io } from 'socket.io-client'
 
 export default function AdminDashboard() {
-  const isLate = (d: Date) => d.getHours() > 8 || (d.getHours() === 8 && d.getMinutes() > 0)
+  const isLate = (d: Date) => d.getHours() > 21 || (d.getHours() === 21 && d.getMinutes() > 30)
   const [overview, setOverview] = useState<{ totalUsers: number; totalAdmins: number; presentToday: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [events, setEvents] = useState<Array<{ type: 'login' | 'logout'; userId: number; email?: string | null; at: string }>>([])
@@ -102,19 +102,21 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Right-side cards grid with tall Present Today on the left */}
-        <div className="grid grid-cols-2 grid-rows-2 gap-4 h-full w-max ml-auto">
-          <div className="row-span-2 bg-white rounded-lg shadow p-8 text-center flex flex-col justify-center w-60 md:w-65">
+        {/* Right-side cards layout */}
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 h-full sm:ml-auto">
+          <div className="bg-white rounded-lg shadow p-6 sm:p-8 text-center flex flex-col justify-center w-full sm:w-64 md:w-72 lg:w-80 xl:w-80 sm:flex-shrink-0">
             <div className="text-sm tracking-wide text-gray-600">Present Today</div>
-            <div className="text-6xl font-extrabold mt-1">{overview?.presentToday ?? '-'}</div>
+            <div className="text-4xl sm:text-5xl md:text-6xl font-extrabold mt-1">{overview?.presentToday ?? '-'}</div>
           </div>
-          <div className="bg-white rounded-lg shadow-sm p-5 text-center flex flex-col justify-center w-40 md:w-48">
-            <div className="text-sm tracking-wide text-gray-600">Admins</div>
-            <div className="text-4xl font-extrabold mt-1">{overview?.totalAdmins ?? '-'}</div>
-          </div>
-          <div className="bg-white rounded-lg shadow-sm p-5 text-center flex flex-col justify-center w-40 md:w-48">
-            <div className="text-sm tracking-wide text-gray-600">Users</div>
-            <div className="text-4xl font-extrabold mt-1">{overview?.totalUsers ?? '-'}</div>
+          <div className="flex flex-row sm:flex-col gap-3 sm:gap-4">
+            <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4 md:p-5 text-center flex flex-col justify-center flex-1 sm:w-24 sm:flex-none sm:w-28 md:w-32 lg:w-36">
+              <div className="text-xs sm:text-sm tracking-wide text-gray-600">Admins</div>
+              <div className="text-2xl sm:text-3xl md:text-4xl font-extrabold mt-1">{overview?.totalAdmins ?? '-'}</div>
+            </div>
+            <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4 md:p-5 text-center flex flex-col justify-center flex-1 sm:w-24 sm:flex-none sm:w-28 md:w-32 lg:w-36">
+              <div className="text-xs sm:text-sm tracking-wide text-gray-600">Users</div>
+              <div className="text-2xl sm:text-3xl md:text-4xl font-extrabold mt-1">{overview?.totalUsers ?? '-'}</div>
+            </div>
           </div>
         </div>
 

@@ -49,7 +49,18 @@ class ApiService {
         let data: any = undefined
         try { data = await response.json() } catch {}
         if (!response.ok) {
-          throw new Error((data && data.message) || 'Request failed')
+          const msg = (data && data.message) || ''
+          if (response.status === 401 || response.status === 400) {
+            if (/(invalid token|access denied|deactivated)/i.test(msg)) {
+              this.clearToken()
+              try { localStorage.removeItem('role') } catch {}
+              if (typeof window !== 'undefined' && window.location && window.location.pathname !== '/login') {
+                window.location.href = '/login'
+              }
+              return { error: 'Unauthorized' } as ApiResponse<T>
+            }
+          }
+          throw new Error(msg || 'Request failed')
         }
         return { data } as ApiResponse<T>
       })
